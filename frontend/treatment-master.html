@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Treatment Price Master</title>
+
+<link rel="stylesheet"
+ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+body{
+  font-family:"Segoe UI",Arial;
+  background:#f1f5f9;
+  margin:0;
+  padding:30px;
+}
+.container{
+  max-width:900px;
+  margin:auto;
+  background:white;
+  padding:25px;
+  border-radius:14px;
+  box-shadow:0 15px 35px rgba(0,0,0,.15);
+}
+h2{
+  margin-top:0;
+  color:#0f766e;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.form{
+  display:grid;
+  grid-template-columns:2fr 1fr auto;
+  gap:12px;
+  margin-bottom:25px;
+}
+input{
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  font-size:15px;
+}
+button{
+  padding:10px 14px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:600;
+}
+.save-btn{background:#0f766e;color:white}
+.update-btn{background:#2563eb;color:white}
+.delete-btn{background:#dc2626;color:white;margin-left:6px}
+.badge{
+  background:#e6f2f1;
+  color:#065f46;
+  padding:4px 10px;
+  border-radius:20px;
+  font-size:12px;
+}
+.back-btn{
+  background:#6b7280;
+  color:white;
+  border:none;
+  padding:10px 18px;
+  border-radius:10px;
+  cursor:pointer;
+  margin-top:15px;
+}
+.price-input{
+  width:120px;
+  padding:6px;
+}
+table{width:100%;border-collapse:collapse}
+th{
+  background:#0f766e;
+  color:white;
+  padding:12px;
+  text-align:left;
+}
+td{
+  padding:10px;
+  border-bottom:1px solid #e5e7eb;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2><i class="fa-solid fa-notes-medical"></i> Treatment Price Master</h2>
+
+<!-- ADD NEW -->
+<div class="form">
+  <input id="treatmentName" placeholder="Treatment Name">
+  <input id="price" type="number" placeholder="Price / Day">
+  <button class="save-btn" onclick="saveTreatment()">
+    <i class="fa-solid fa-plus"></i> Save
+  </button>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Treatment</th>
+      <th>Price / Day (₹)</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody id="list"></tbody>
+</table>
+
+<button class="back-btn" onclick="goBack()">⬅ Back to Dashboard</button>
+
+</div>
+
+<script>
+const API = "http://localhost:5500";
+const token = localStorage.getItem("token");
+const list = document.getElementById("list");
+
+if(!token){
+  alert("Session expired");
+location.href="/";
+}
+
+/* LOAD */
+async function loadTreatments(){
+  const res = await fetch(`${API}/treatments`,{
+    headers:{ Authorization:`Bearer ${token}` }
+  });
+
+  if(!res.ok){
+    alert("Failed to load treatments");
+    return;
+  }
+
+  const data = await res.json();
+  list.innerHTML = data.map(t=>`
+    <tr>
+      <td><b>${t.name}</b> <span class="badge">Active</span></td>
+      <td>
+        <input class="price-input"
+          id="price-${t._id}"
+          type="number"
+          value="${t.pricePerDay}">
+      </td>
+      <td>
+        <button class="update-btn"
+          onclick="updateTreatment('${t._id}')">
+          <i class="fa-solid fa-pen"></i>
+        </button>
+        <button class="delete-btn"
+          onclick="deleteTreatment('${t._id}')">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+/* SAVE */
+async function saveTreatment(){
+  if(!treatmentName.value || !price.value){
+    alert("Enter treatment name & price");
+    return;
+  }
+
+  const res = await fetch(`${API}/treatments`,{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:`Bearer ${token}`
+    },
+    body:JSON.stringify({
+      name: treatmentName.value,
+      pricePerDay: Number(price.value)
+    })
+  });
+
+  if(!res.ok){
+    alert("Treatment already exists");
+    return;
+  }
+
+  treatmentName.value="";
+  price.value="";
+  loadTreatments();
+}
+
+/* UPDATE */
+async function updateTreatment(id){
+  const newPrice = document.getElementById(`price-${id}`).value;
+
+  await fetch(`${API}/treatments/${id}`,{
+    method:"PUT",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:`Bearer ${token}`
+    },
+    body:JSON.stringify({ pricePerDay:Number(newPrice) })
+  });
+
+  alert("✅ Price updated");
+  loadTreatments();
+}
+
+/* DELETE */
+async function deleteTreatment(id){
+  if(!confirm("Delete this treatment?")) return;
+
+  await fetch(`${API}/treatments/${id}`,{
+    method:"DELETE",
+    headers:{ Authorization:`Bearer ${token}` }
+  });
+
+  alert("🗑 Treatment deleted");
+  loadTreatments();
+}
+
+function goBack(){
+  location.href="dashboard.html";
+}
+
+loadTreatments();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Doctor Profile</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+body{
+  margin:0;
+  font-family:"Segoe UI",Arial;
+  background:
+    linear-gradient(rgba(230,242,241,.9), rgba(230,242,241,.9)),
+    url("https://images.unsplash.com/photo-1550831107-1553da8c8464?v=2");
+  background-size: cover;
+  background-position: center;
+}
+.card{
+  max-width:900px;
+  margin:40px auto;
+  background:white;
+  border-radius:16px;
+  box-shadow:0 15px 30px rgba(0,0,0,.15);
+  padding:30px;
+}
+.header{
+  display:flex;
+  gap:25px;
+  align-items:center;
+}
+.doctor-img{
+  width:150px;
+  height:150px;
+  border-radius:50%;
+  border:5px solid #0f766e;
+  overflow:hidden;
+  background:#fff;
+}
+.doctor-img img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.badge{
+  background:#0f766e;
+  color:white;
+  padding:6px 14px;
+  border-radius:20px;
+  display:inline-block;
+  margin-top:6px;
+}
+.info{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:15px;
+  margin-top:25px;
+}
+.box{
+  background:#f0fdfa;
+  padding:15px;
+  border-radius:10px;
+}
+button{
+  margin-top:25px;
+  padding:12px 18px;
+  background:#0f766e;
+  color:white;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  font-size:15px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+  <div class="header">
+    <div class="doctor-img">
+      <img src="http://localhost:5500/assets/female-doctor.png" alt="Doctor">
+    </div>
+    <div>
+      <h2>Dr. B. Janaki Lakshimi</h2>
+      <div class="badge">Consultant Physiotherapist</div>
+      <p>7+ Years Experience</p>
+    </div>
+  </div>
+
+  <div class="info">
+    <div class="box"><b>Specialization</b><br>Orthopedic<br>Sports Physiotherapy<br>Pediatric Physiotherapy</div>
+    <div class="box"><b>Consultation Time</b><br>10:00 AM – 1:30 PM<br>5:30 PM – 8:30 PM</div>
+    <div class="box"><b>Contact</b><br>📞 9493800475<br>📞 9059804257</div>
+    <div class="box"><b>Hospital</b><br>Sri Physiotherapy Clinic<br>Eluru</div>
+  </div>
+
+  <button onclick="goBack()">⬅ Back to Dashboard</button>
+
+</div>
+
+<script>
+const token = localStorage.getItem("token");
+
+// 🔐 Protect page
+if(!token){
+location.href="/";
+}
+
+function goBack(){
+  // ✅ CORRECT PATH
+  window.location.href = "dashboard.html";
+}
+</script>
+
+</body>
+</html>

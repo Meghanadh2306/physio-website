@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Doctor Master</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+:root{
+  --primary:#0f766e;
+  --secondary:#14b8a6;
+  --danger:#dc2626;
+  --bg:#e6f2f1;
+  --card:#ffffff;
+  --text:#1f2937;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:"Segoe UI", Arial;
+  background:linear-gradient(rgba(230,242,241,.95),rgba(230,242,241,.95));
+  color:var(--text);
+}
+
+/* HEADER */
+.header{
+  background:linear-gradient(135deg,var(--primary),var(--secondary));
+  color:white;
+  padding:18px 25px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.header h2{margin:0;font-size:22px}
+.header button{
+  background:#475569;
+  border:none;
+  color:white;
+  padding:8px 14px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+/* CONTAINER */
+.container{
+  max-width:700px;
+  margin:30px auto;
+  background:var(--card);
+  padding:30px;
+  border-radius:18px;
+  box-shadow:0 15px 40px rgba(0,0,0,.15);
+}
+
+h3{
+  margin-top:0;
+  color:var(--primary);
+  text-align:center;
+}
+
+/* FORM */
+.form{
+  display:grid;
+  gap:14px;
+  margin-bottom:20px;
+}
+input{
+  padding:14px;
+  border-radius:12px;
+  border:1px solid #cbd5e1;
+  font-size:16px;
+}
+input:focus{
+  outline:none;
+  border-color:var(--primary);
+  box-shadow:0 0 0 2px rgba(15,118,110,.2);
+}
+.add-btn{
+  background:var(--primary);
+  color:white;
+  border:none;
+  padding:14px;
+  border-radius:14px;
+  font-size:16px;
+  font-weight:600;
+  cursor:pointer;
+}
+
+/* LIST */
+.list{
+  margin-top:25px;
+}
+.item{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#f8fafc;
+  padding:14px 16px;
+  border-radius:12px;
+  margin-bottom:10px;
+}
+.item b{
+  font-size:16px;
+}
+.delete{
+  background:var(--danger);
+  border:none;
+  color:white;
+  padding:8px 14px;
+  border-radius:8px;
+  cursor:pointer;
+  font-size:13px;
+}
+
+/* FOOTER */
+.footer-btn{
+  margin-top:25px;
+  background:#475569;
+  color:white;
+  border:none;
+  padding:12px;
+  width:100%;
+  border-radius:12px;
+  cursor:pointer;
+  font-size:15px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <h2><i class="fa-solid fa-user-doctor"></i> Doctor Master</h2>
+  <button onclick="goBack()">⬅ Dashboard</button>
+</div>
+
+<!-- CONTENT -->
+<div class="container">
+
+  <h3>Add / Manage Doctors</h3>
+
+  <!-- ADD FORM -->
+  <div class="form">
+    <input id="name" placeholder="Doctor Name (e.g. Dr. Lokesh Kumar)">
+    <button class="add-btn" onclick="addDoctor()">➕ Add Doctor</button>
+  </div>
+
+  <!-- LIST -->
+  <div class="list" id="doctorList"></div>
+
+  <button class="footer-btn" onclick="goBack()">⬅ Back to Dashboard</button>
+</div>
+
+<script>
+const API = "http://localhost:5500";
+const token = localStorage.getItem("token");
+if(!token) location.href="index.html";
+
+/* LOAD DOCTORS */
+async function loadDoctors(){
+  const res = await fetch(`${API}/doctors`,{
+    headers:{ Authorization:`Bearer ${token}` }
+  });
+  const doctors = await res.json();
+
+  doctorList.innerHTML = doctors.map(d=>`
+    <div class="item">
+      <b>${d.name}</b>
+      <button class="delete" onclick="deleteDoctor('${d._id}')">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+    </div>
+  `).join("");
+}
+
+/* ADD DOCTOR */
+async function addDoctor(){
+  const doctorName = document.getElementById("name").value.trim();
+
+  if(!doctorName){
+    alert("Doctor name is required");
+    return;
+  }
+
+  await fetch(`${API}/doctors`,{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:`Bearer ${token}`
+    },
+    body: JSON.stringify({
+      name: doctorName
+    })
+  });
+
+  document.getElementById("name").value = "";
+  loadDoctors();
+}
+
+
+
+/* DELETE DOCTOR */
+async function deleteDoctor(id){
+  if(!confirm("Delete this doctor?")) return;
+
+  await fetch(`${API}/doctors/${id}`,{
+    method:"DELETE",
+    headers:{ Authorization:`Bearer ${token}` }
+  });
+
+  loadDoctors();
+}
+
+function goBack(){
+  location.href="dashboard.html";
+}
+
+loadDoctors();
+</script>
+
+</body>
+</html>

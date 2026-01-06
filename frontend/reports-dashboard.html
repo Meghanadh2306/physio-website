@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Payment Dues & Reports</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+:root{
+  --primary:#0f766e;
+  --secondary:#14b8a6;
+  --bg:#e6f2f1;
+  --card:#ffffff;
+  --text:#1f2937;
+}
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:"Segoe UI",Arial;
+  background:
+    linear-gradient(rgba(230,242,241,.95),rgba(230,242,241,.95)),
+    url("https://images.unsplash.com/photo-1586773860418-d37222d8fce3");
+  background-size:cover;
+  color:var(--text);
+}
+
+/* HEADER */
+.header{
+  background:linear-gradient(135deg,var(--primary),var(--secondary));
+  color:white;
+  padding:18px 25px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.header button{
+  border:none;
+  padding:8px 14px;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+/* LAYOUT */
+.container{
+  max-width:1200px;
+  margin:auto;
+  padding:25px;
+}
+.card{
+  background:var(--card);
+  border-radius:14px;
+  padding:20px;
+  box-shadow:0 10px 25px rgba(0,0,0,.1);
+  margin-bottom:20px;
+}
+
+/* FILTER */
+.filter{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+}
+.filter select,.filter button{
+  padding:12px;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+.filter button{
+  background:var(--primary);
+  color:white;
+  border:none;
+  font-weight:600;
+}
+
+/* STATS */
+.stats{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:15px;
+}
+.stat{
+  background:#f8fafc;
+  border-left:6px solid var(--primary);
+  padding:18px;
+  border-radius:10px;
+}
+
+/* ACTIONS */
+.actions{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:12px;
+}
+.actions button{
+  padding:12px;
+  border:none;
+  border-radius:8px;
+  font-weight:600;
+  cursor:pointer;
+}
+.excel{background:#1d4ed8;color:white}
+.print{background:#16a34a;color:white}
+
+canvas{max-height:320px}
+
+@media print{
+  .header,.filter,.actions{display:none}
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2><i class="fa-solid fa-chart-pie"></i> Payment & Dues Reports</h2>
+  <button onclick="goBack()">⬅ Dashboard</button>
+</div>
+
+<div class="container">
+
+  <!-- FILTER -->
+  <div class="card">
+    <div class="filter">
+      <select id="month">
+        <option value="">Select Month</option>
+        <option value="0">January</option>
+        <option value="1">February</option>
+        <option value="2">March</option>
+        <option value="3">April</option>
+        <option value="4">May</option>
+        <option value="5">June</option>
+        <option value="6">July</option>
+        <option value="7">August</option>
+        <option value="8">September</option>
+        <option value="9">October</option>
+        <option value="10">November</option>
+        <option value="11">December</option>
+      </select>
+
+      <select id="year"></select>
+
+      <button onclick="generateReports()">Generate Report</button>
+    </div>
+  </div>
+
+  <!-- MONTHLY -->
+  <div class="card">
+    <h3>📅 Monthly Summary</h3>
+    <div id="monthlyStats" class="stats"></div>
+  </div>
+
+  <div class="card">
+    <canvas id="monthlyChart"></canvas>
+  </div>
+
+  <!-- YEARLY -->
+  <div class="card">
+    <h3>📆 Yearly Summary</h3>
+    <div id="yearlyStats" class="stats"></div>
+  </div>
+
+  <div class="card">
+    <canvas id="yearlyChart"></canvas>
+  </div>
+
+  <div class="actions">
+    <button class="excel" onclick="downloadExcel()">📥 Excel</button>
+    <button class="print" onclick="window.print()">🖨 Print</button>
+  </div>
+
+</div>
+
+<script>
+const API="http://localhost:5500";
+const token=localStorage.getItem("token");
+if(!token) location.href="index.html";
+
+// Year dropdown
+const yearSelect=document.getElementById("year");
+const cy=new Date().getFullYear();
+for(let y=cy-5;y<=cy+5;y++){
+  yearSelect.innerHTML+=`<option ${y===cy?"selected":""}>${y}</option>`;
+}
+
+// Chart elements
+const monthlyChartEl=document.getElementById("monthlyChart");
+const yearlyChartEl=document.getElementById("yearlyChart");
+
+let monthlyChart=null;
+let yearlyChart=null;
+
+async function generateReports(){
+  const monthVal=document.getElementById("month").value;
+  const yearVal=document.getElementById("year").value;
+
+  if(monthVal===""){ alert("Select month"); return; }
+
+  const res=await fetch(`${API}/patients`,{
+    headers:{Authorization:`Bearer ${token}`}
+  });
+  const patients=await res.json();
+
+  let mTotal=0,mPaid=0,mDue=0,mCount=0;
+  let yTotal=0,yPaid=0,yDue=0,yCount=0;
+  let daily={}, yearly={};
+
+  patients.forEach(p=>{
+    const d=new Date(p.appointmentDate || p.createdAt);
+    const due=(p.totalAmount||0)-(p.paidAmount||0);
+
+    if(d.getFullYear()==yearVal){
+      yTotal+=p.totalAmount||0;
+      yPaid+=p.paidAmount||0;
+      if(due>0) yDue+=due;
+      yCount++;
+      yearly[d.getMonth()]=(yearly[d.getMonth()]||0)+(p.paidAmount||0);
+    }
+
+    if(d.getMonth()==monthVal && d.getFullYear()==yearVal){
+      mTotal+=p.totalAmount||0;
+      mPaid+=p.paidAmount||0;
+      if(due>0) mDue+=due;
+      mCount++;
+      daily[d.getDate()]=(daily[d.getDate()]||0)+(p.paidAmount||0);
+    }
+  });
+
+  monthlyStats.innerHTML=`
+    <div class="stat"><h3>${mCount}</h3><p>Patients</p></div>
+    <div class="stat"><h3>₹${mTotal}</h3><p>Total</p></div>
+    <div class="stat"><h3>₹${mPaid}</h3><p>Collected</p></div>
+    <div class="stat"><h3>₹${mDue}</h3><p>Due</p></div>
+  `;
+
+  yearlyStats.innerHTML=`
+    <div class="stat"><h3>${yCount}</h3><p>Patients</p></div>
+    <div class="stat"><h3>₹${yTotal}</h3><p>Total</p></div>
+    <div class="stat"><h3>₹${yPaid}</h3><p>Collected</p></div>
+    <div class="stat"><h3>₹${yDue}</h3><p>Due</p></div>
+  `;
+
+  if(monthlyChart) monthlyChart.destroy();
+  monthlyChart=new Chart(monthlyChartEl,{
+    type:"bar",
+    data:{labels:Object.keys(daily),
+      datasets:[{label:"Daily Collection",data:Object.values(daily),backgroundColor:"#0f766e"}]
+    }
+  });
+
+  if(yearlyChart) yearlyChart.destroy();
+  yearlyChart=new Chart(yearlyChartEl,{
+    type:"line",
+    data:{
+      labels:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+      datasets:[{label:"Monthly Collection",data:Object.values(yearly),borderColor:"#14b8a6"}]
+    }
+  });
+}
+function downloadExcel(){
+  const monthVal = document.getElementById("month").value;
+  const yearVal  = document.getElementById("year").value;
+  const token    = localStorage.getItem("token");
+
+  if(monthVal === ""){
+    alert("Select month");
+    return;
+  }
+
+  window.open(
+    `${API}/report/monthly/excel?month=${Number(monthVal)+1}&year=${yearVal}&token=${token}`
+  );
+}
+
+function goBack(){ location.href="dashboard.html"; }
+</script>
+
+</body>
+</html>

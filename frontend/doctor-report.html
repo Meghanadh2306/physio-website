@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Doctor-wise Report</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+:root{
+  --primary:#0f766e;
+  --bg:#e6f2f1;
+  --card:#ffffff;
+  --text:#1f2937;
+}
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:"Segoe UI",Arial;
+  background:
+    linear-gradient(rgba(230,242,241,.95),rgba(230,242,241,.95)),
+    url("https://images.unsplash.com/photo-1586773860418-d37222d8fce3");
+  background-size:cover;
+  color:var(--text);
+}
+
+.header{
+  background:linear-gradient(135deg,var(--primary),#14b8a6);
+  color:white;
+  padding:18px 25px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.header button{
+  border:none;
+  padding:8px 14px;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.card{
+  max-width:480px;
+  margin:40px auto;
+  background:var(--card);
+  padding:28px;
+  border-radius:18px;
+  box-shadow:0 15px 35px rgba(0,0,0,.15);
+}
+h2{text-align:center;color:var(--primary)}
+
+select,button{
+  width:100%;
+  padding:12px;
+  margin-top:12px;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+button{
+  background:var(--primary);
+  color:white;
+  border:none;
+  font-weight:600;
+  cursor:pointer;
+}
+button.secondary{background:#1d4ed8}
+button.download{background:#16a34a}
+
+.table-card{
+  max-width:1000px;
+  margin:20px auto;
+  background:white;
+  padding:20px;
+  border-radius:14px;
+  box-shadow:0 10px 25px rgba(0,0,0,.1);
+}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;border-bottom:1px solid #ddd}
+th{background:#f1f5f9}
+.badge{
+  padding:4px 10px;
+  border-radius:12px;
+  font-size:12px;
+  color:white;
+}
+.Ongoing{background:#f59e0b}
+.Completed{background:#22c55e}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h3><i class="fa-solid fa-user-doctor"></i> Doctor-wise Report</h3>
+  <button onclick="goBack()">⬅ Dashboard</button>
+</div>
+
+<div class="card">
+  <h2>Doctor-wise Monthly Report</h2>
+
+<select id="doctor">
+  <option value="">Select Doctor</option>
+</select>
+
+
+  <select id="month">
+    <option value="">Month</option>
+    <option value="01">January</option>
+    <option value="02">February</option>
+    <option value="03">March</option>
+    <option value="04">April</option>
+    <option value="05">May</option>
+    <option value="06">June</option>
+    <option value="07">July</option>
+    <option value="08">August</option>
+    <option value="09">September</option>
+    <option value="10">October</option>
+    <option value="11">November</option>
+    <option value="12">December</option>
+  </select>
+
+  <select id="year"></select>
+
+  <button class="download" onclick="downloadPDF()">📄 Download PDF</button>
+</div>
+
+<div id="preview" class="table-card" style="display:none;">
+  <h3>Patient Details</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>Gender</th>
+        <th>Appointment Date</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<script>
+const API="http://localhost:5500";
+const token=localStorage.getItem("token");
+if(!token) location.href="index.html";
+
+const yearSel=document.getElementById("year");
+const cy=new Date().getFullYear();
+for(let i=cy-5;i<=cy+5;i++) yearSel.innerHTML+=`<option>${i}</option>`;
+
+function validate(){
+  if(!doctor.value || !month.value || !year.value){
+    alert("Select doctor, month and year");
+    return false;
+  }
+  return true;
+}
+async function loadDoctors(){
+  const res = await fetch(`${API}/doctors`,{
+    headers:{ Authorization:`Bearer ${token}` }
+  });
+  const doctors = await res.json();
+
+  doctor.innerHTML =
+    `<option value="">Select Doctor</option>` +
+    doctors.map(d => `<option value="${d.name}">${d.name}</option>`).join("");
+}
+
+loadDoctors();
+
+
+async function viewDetails(){
+  if(!validate()) return;
+
+  const res=await fetch(`${API}/patients`,{
+    headers:{Authorization:`Bearer ${token}`}
+  });
+  const patients=await res.json();
+
+  const tbody=document.getElementById("tableBody");
+  tbody.innerHTML="";
+  let count=0;
+
+  patients.forEach((p, i)=>{
+    if(
+      p.recommendedDoctor === doctor.value &&
+      p.appointmentDate &&
+      p.appointmentDate.startsWith(`${year.value}-${month.value}`)
+    ){
+      count++;
+      tbody.innerHTML+=`
+        <tr>
+          <td>${count}</td>
+          <td>${p.name}</td>
+          <td>${p.phone}</td>
+          <td>${p.gender || "-"}</td>
+          <td>${p.appointmentDate}</td>
+        </tr>
+      `;
+    }
+  });
+
+  document.getElementById("preview").style.display="block";
+  if(count===0) alert("No patients found");
+}
+
+function downloadPDF(){
+  if(!validate()) return;
+
+  const url = `${API}/reports/doctor-pdf?doctor=${encodeURIComponent(doctor.value)}&month=${month.value}&year=${year.value}`;
+  location.href = url;   // ✅ forces download
+}
+
+
+function goBack(){ location.href="dashboard.html"; }
+</script>
+
+</body>
+</html>

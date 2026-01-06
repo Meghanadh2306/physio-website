@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Book Appointment</title>
+
+<style>
+:root{
+  --primary:#0f766e;
+  --light:#ecfeff;
+  --border:#e5e7eb;
+  --text:#1f2937;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:"Segoe UI",Arial;
+  background:
+    linear-gradient(rgba(240,253,250,.95),rgba(240,253,250,.95)),
+    url("https://images.unsplash.com/photo-1588776814546-1ffcf47267a5");
+  background-size:cover;
+}
+
+/* CARD */
+.card{
+  max-width:520px;
+  margin:30px auto;
+  background:white;
+  padding:30px;
+  border-radius:20px;
+  box-shadow:0 20px 45px rgba(0,0,0,.15);
+}
+
+/* TITLE */
+h2{
+  text-align:center;
+  color:var(--primary);
+  margin-bottom:5px;
+}
+.subtitle{
+  text-align:center;
+  font-size:13px;
+  color:#6b7280;
+  margin-bottom:20px;
+}
+
+/* FORM ELEMENTS */
+input, textarea, select, button{
+  width:100%;
+  margin-top:12px;
+  padding:13px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  font-size:14px;
+  color:var(--text);
+}
+
+textarea{resize:none}
+
+input:focus, textarea:focus, select:focus{
+  outline:none;
+  border-color:var(--primary);
+  box-shadow:0 0 0 2px rgba(15,118,110,.2);
+}
+
+/* SECTION */
+.section{
+  margin-top:22px;
+}
+.section-title{
+  font-weight:600;
+  margin-bottom:8px;
+  color:#374151;
+  border-left:4px solid var(--primary);
+  padding-left:8px;
+}
+
+/* GENDER */
+.gender-box{
+  display:flex;
+  gap:12px;
+}
+.gender-box label{
+  flex:1;
+  border:1px solid var(--border);
+  padding:12px;
+  text-align:center;
+  border-radius:12px;
+  cursor:pointer;
+}
+.gender-box input{display:none}
+.gender-box input:checked + span{
+  background:var(--primary);
+  color:white;
+  padding:10px;
+  border-radius:10px;
+  display:block;
+}
+
+/* TREATMENTS */
+.treatments{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+.treatments label{
+  border:1px solid var(--border);
+  padding:8px 14px;
+  border-radius:25px;
+  cursor:pointer;
+  font-size:13px;
+}
+.treatments input{display:none}
+.treatments input:checked + span{
+  background:var(--primary);
+  color:white;
+}
+
+/* BUTTONS */
+button{
+  background:linear-gradient(135deg,var(--primary),#14b8a6);
+  color:white;
+  border:none;
+  font-size:15px;
+  font-weight:600;
+  cursor:pointer;
+  margin-top:18px;
+}
+button:hover{opacity:.95}
+
+.back{
+  background:#6b7280;
+}
+.back:hover{background:#4b5563}
+
+/* FOOTER NOTE */
+.note{
+  text-align:center;
+  font-size:12px;
+  color:#6b7280;
+  margin-top:14px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <h2>Sri Physiotherapy Clinic</h2>
+  <div class="subtitle">Patient Appointment Booking</div>
+
+  <form id="bookForm">
+
+    <input id="name" placeholder="Patient Full Name" required>
+    <input id="age" type="number" placeholder="Age" required>
+    <textarea id="address" placeholder="Address" required></textarea>
+    <input id="phone" placeholder="Phone Number" required>
+
+    <div class="section">
+      <div class="section-title">Appointment Date</div>
+      <input id="appointment_date" type="date" required>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Gender</div>
+      <div class="gender-box">
+        <label><input type="radio" name="gender" value="Male" required><span>Male</span></label>
+        <label><input type="radio" name="gender" value="Female"><span>Female</span></label>
+        <label><input type="radio" name="gender" value="Other"><span>Other</span></label>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Type of Treatment</div>
+<div id="treatments" class="treatments"></div>
+
+    </div>
+
+    <div class="section">
+      <div class="section-title">Recommended Doctor</div>
+<select id="recommendedDoctor" required>
+  <option value="">Select Doctor</option>
+</select>
+
+    </div>
+
+    <textarea id="problem" placeholder="Describe Patient Problem (Optional)"></textarea>
+
+    <button type="submit">Confirm Appointment</button>
+    <button type="button" class="back" onclick="goBack()">Back to Dashboard</button>
+
+    <div class="note">We care about your health 💙</div>
+  </form>
+</div>
+
+<script>
+const API = "http://localhost:5500";
+const bookForm = document.getElementById("bookForm");
+const token = localStorage.getItem("token");
+if (!token) {
+  alert("Session expired. Please login again.");
+  location.href = "index.html";
+}
+/* LOAD TREATMENTS FROM MASTER */
+async function loadTreatments(){
+  try{
+    const res = await fetch(`${API}/treatments`, {
+      headers:{ Authorization:`Bearer ${token}` }
+    });
+
+    const data = await res.json();
+
+    const treatmentsDiv = document.getElementById("treatments");
+    treatmentsDiv.innerHTML = "";
+
+    data.forEach(t => {
+      treatmentsDiv.innerHTML += `
+        <label>
+          <input type="checkbox" value="${t.name}">
+          <span>${t.name}</span>
+        </label>
+      `;
+    });
+
+  }catch(err){
+    console.error(err);
+    alert("❌ Failed to load treatments");
+  }
+}
+/* LOAD DOCTORS FROM DOCTOR MASTER */
+async function loadDoctors(){
+  try{
+    const res = await fetch(`${API}/doctors`, {
+      headers:{ Authorization:`Bearer ${token}` }
+    });
+
+    const doctors = await res.json();
+    const doctorSelect = document.getElementById("recommendedDoctor");
+
+    doctorSelect.innerHTML = `<option value="">Select Doctor</option>`;
+
+    doctors.forEach(d => {
+      doctorSelect.innerHTML += `
+        <option value="${d.name}">${d.name}</option>
+      `;
+    });
+
+  }catch(err){
+    console.error(err);
+    alert("❌ Failed to load doctors");
+  }
+}
+
+
+/* CALL ON PAGE LOAD */
+loadTreatments();
+loadDoctors();
+bookForm.addEventListener("submit", async function(e){
+
+  e.preventDefault();
+
+  // ✅ FIX: define treatments FIRST
+  const treatments = Array.from(
+    document.querySelectorAll('#treatments input:checked')
+  ).map(cb => cb.value);
+
+  const data = {
+    name: document.getElementById("name").value.trim(),
+    age: Number(document.getElementById("age").value),
+    gender: document.querySelector('input[name="gender"]:checked')?.value,
+    address: document.getElementById("address").value.trim(),
+    phone: document.getElementById("phone").value.trim(),
+    appointmentDate: document.getElementById("appointment_date").value,
+    treatments: treatments,
+    problem: document.getElementById("problem").value.trim(),
+    recommendedDoctor: document.getElementById("recommendedDoctor").value
+  };
+
+  // ✅ VALIDATION
+  if(!data.name || !data.age || !data.phone || !data.appointmentDate){
+    alert("❌ Please fill all required fields");
+    return;
+  }
+
+  if(!data.gender){
+    alert("❌ Please select gender");
+    return;
+  }
+
+  if(treatments.length === 0){
+    alert("❌ Please select at least one treatment");
+    return;
+  }
+  if(!data.recommendedDoctor){
+  alert("❌ Please select a recommended doctor");
+  return;
+}
+
+
+  try{
+const res = await fetch(`${API}/patients`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`
+  },
+  body: JSON.stringify(data)
+});
+
+
+    const result = await res.json();
+
+    if(!res.ok){
+      alert(result.message || "Booking failed");
+      return;
+    }
+
+    alert("✅ Appointment booked successfully");
+window.location.href = "dashboard.html";
+
+  }catch(err){
+    console.error(err);
+alert("❌ Failed to book appointment. Check server logs.");
+  }
+});
+
+function goBack(){ location.href="dashboard.html"; }
+</script>
+
+
+</body>
+</html>

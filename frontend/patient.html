@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Patient Billing & Treatment</title>
+
+<style>
+:root{
+  --primary:#0e7490;
+  --primary-dark:#155e75;
+  --secondary:#06b6d4;
+  --danger:#dc2626;
+  --bg:#e0f2fe;
+  --card:#ffffff;
+  --muted:#64748b;
+  --text:#0f172a;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:"Segoe UI",system-ui,Arial;
+  background:linear-gradient(180deg,#e0f2fe,#f8fafc);
+  min-height:100vh;
+  padding:30px;
+  color:var(--text);
+}
+
+.container{
+  max-width:1000px;
+  margin:auto;
+}
+
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:24px;
+}
+.topbar h1{
+  margin:0;
+  font-size:26px;
+  color:var(--primary-dark);
+}
+.back{
+  background:#475569;
+  color:white;
+  border:none;
+  padding:10px 18px;
+  border-radius:10px;
+  cursor:pointer;
+}
+
+.card{
+  background:var(--card);
+  border-radius:18px;
+  padding:26px;
+  box-shadow:0 20px 45px rgba(0,0,0,.08);
+  margin-bottom:24px;
+}
+
+.patient-info{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+}
+.info-box{
+  background:#f8fafc;
+  border-radius:14px;
+  padding:16px;
+}
+.info-box span{
+  font-size:13px;
+  color:var(--muted);
+}
+.info-box b{
+  font-size:16px;
+}
+
+.stats{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+  margin-top:20px;
+}
+.stat{
+  border-radius:16px;
+  padding:18px;
+  text-align:center;
+}
+.stat.total{background:#ecfeff}
+.stat.paid{background:#f0fdf4}
+.stat.due{background:#fef2f2}
+.stat h3{margin:0;font-size:14px;color:var(--muted)}
+.stat span{font-size:26px;font-weight:700}
+
+.section h2{
+  margin-bottom:12px;
+  color:var(--primary-dark);
+  font-size:20px;
+}
+
+input,textarea{
+  width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #cbd5e1;
+  margin-top:8px;
+  font-size:15px;
+}
+textarea{resize:none}
+
+button{
+  padding:12px 18px;
+  border:none;
+  border-radius:12px;
+  font-size:15px;
+  cursor:pointer;
+  margin-top:12px;
+}
+.primary{background:var(--primary);color:white}
+.secondary{background:var(--secondary);color:white}
+.invoice{background:#2563eb;color:white}
+.danger{background:var(--danger);color:white}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+th{
+  background:var(--primary);
+  color:white;
+  padding:14px;
+}
+td{
+  padding:12px;
+  text-align:center;
+  border-bottom:1px solid #e5e7eb;
+}
+
+.history{
+  background:#f8fafc;
+  border-radius:14px;
+  padding:18px;
+}
+.history-item{
+  padding:10px 0;
+  border-bottom:1px dashed #cbd5e1;
+  font-size:14px;
+}
+
+.actions{
+  display:flex;
+  gap:12px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="topbar">
+    <h1>🏥 Patient Billing & Treatment</h1>
+    <button class="back" onclick="goBack()">⬅ Back</button>
+  </div>
+
+  <!-- PATIENT INFO -->
+  <div class="card">
+    <div class="patient-info">
+      <div class="info-box">
+        <span>Patient Name</span>
+        <b id="pname">—</b>
+      </div>
+      <div class="info-box">
+        <span>Phone</span>
+        <b id="pphone">—</b>
+      </div>
+      <div class="info-box">
+        <span>Status</span>
+        <b id="pstatus">—</b>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat total">
+        <h3>Total</h3>
+        <span>₹ <span id="total">0</span></span>
+      </div>
+      <div class="stat paid">
+        <h3>Paid</h3>
+        <span>₹ <span id="paid">0</span></span>
+      </div>
+      <div class="stat due">
+        <h3>Due</h3>
+        <span>₹ <span id="due">0</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYMENT -->
+  <div class="card section">
+    <h2>💳 Add Payment</h2>
+<input id="addPaid" type="number" min="1" step="1" placeholder="Enter payment amount">
+    <textarea id="notes" rows="3" placeholder="Notes (optional)"></textarea>
+    <button class="primary" onclick="savePayment()">Save Payment</button>
+  </div>
+
+  <!-- TREATMENTS -->
+  <div class="card section">
+    <h2>🩺 Treatment Details</h2>
+<div style="display:grid; gap:12px; margin-bottom:12px">
+
+  <div>
+    <label for="startDate" style="font-weight:600">
+      🟢 Treatment Start Date
+    </label>
+    <input
+      type="date"
+      id="startDate"
+    />
+  </div>
+
+  <div>
+    <label for="endDate" style="font-weight:600">
+      🔴 Treatment End Date
+    </label>
+    <input
+      type="date"
+      id="endDate"
+    />
+  </div>
+
+</div>
+
+
+
+    <table>
+      <thead>
+        <tr>
+          <th>Treatment</th>
+          <th>Price / Day</th>
+          <th>Days</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody id="treatmentTable"></tbody>
+    </table>
+
+    <p style="margin-top:10px;font-size:16px">
+      <b>Visit Total: ₹ <span id="grandTotal">0</span></b>
+    </p>
+
+    <button class="secondary" onclick="saveTreatments()">💾 Save Treatments</button>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="actions">
+    <button class="invoice" onclick="downloadInvoice()">📄 Invoice</button>
+    <button class="danger" onclick="deletePatient()">🗑 Delete</button>
+  </div>
+
+  <div class="section">
+  <h3>📜 Invoice History</h3>
+  <div id="invoiceHistory"></div>
+</div>
+
+  <!-- HISTORY -->
+  <div class="card section">
+    <h2>📜 Payment History</h2>
+    <div id="history" class="history"></div>
+  </div>
+
+
+</div>
+
+<script>
+const API = "http://localhost:5500";
+const token = localStorage.getItem("token");
+const id = new URLSearchParams(location.search).get("id");
+
+if(!token) location.href="/";
+if(!id){ 
+  alert("Invalid patient"); 
+  location.href="dashboard.html"; 
+}
+
+const pname   = document.getElementById("pname");
+const pphone  = document.getElementById("pphone");
+const pstatus = document.getElementById("pstatus");
+
+const totalEl = document.getElementById("total");
+const paidEl  = document.getElementById("paid");
+const dueEl   = document.getElementById("due");
+const historyDiv = document.getElementById("history");
+const table = document.getElementById("treatmentTable");
+
+let treatmentPrices = {};
+
+async function loadTreatmentMaster(){
+  const res = await fetch(`${API}/treatments`,{
+    headers:{ Authorization:`Bearer ${token}` }
+  });
+  const data = await res.json();
+  treatmentPrices = {};
+  data.forEach(t => treatmentPrices[t.name] = t.pricePerDay);
+}
+
+function recalc(){
+  let total = 0;
+  document.querySelectorAll("#treatmentTable tr").forEach(r=>{
+    const days = +r.querySelector("input").value || 0;
+    const price = +r.children[1].innerText.replace("₹","");
+    const amt = days * price;
+    r.querySelector(".rowTotal").innerText = "₹" + amt;
+    total += amt;
+  });
+  document.getElementById("grandTotal").innerText = total;
+}
+
+async function loadPatient(){
+  await loadTreatmentMaster();
+
+  const res = await fetch(`${API}/patient/${id}`,{
+    headers:{ Authorization:`Bearer ${token}` }
+  });
+  const p = await res.json();
+
+  pname.innerText = p.name;
+  pphone.innerText = p.phone;
+  pstatus.innerText = p.status;
+
+  totalEl.innerText = p.totalAmount || 0;
+  paidEl.innerText = p.paidAmount || 0;
+  dueEl.innerText  = (p.totalAmount || 0) - (p.paidAmount || 0);
+
+  table.innerHTML = "";
+
+  if(p.treatmentHistory?.length){
+    p.treatmentHistory.at(-1).treatments.forEach(t=>{
+      table.innerHTML += `
+        <tr>
+          <td>${t.treatmentName}</td>
+          <td>₹${t.pricePerDay}</td>
+          <td><input type="number" value="${t.days}" oninput="recalc()"></td>
+          <td class="rowTotal">₹${t.totalAmount}</td>
+        </tr>`;
+    });
+  }
+  // ✅ SHOW ONLY APPOINTMENT-SELECTED TREATMENTS (FIRST VISIT)
+// ✅ FIRST VISIT – LOAD FROM TREATMENT MASTER
+if (!p.treatmentHistory?.length) {
+  Object.keys(treatmentPrices).forEach(name => {
+    const price = treatmentPrices[name];
+
+    table.innerHTML += `
+      <tr>
+        <td>${name}</td>
+        <td>₹${price}</td>
+        <td>
+          <input type="number" value="0" min="0" oninput="recalc()">
+        </td>
+        <td class="rowTotal">₹0</td>
+      </tr>
+    `;
+  });
+}
+
+
+  recalc();
+
+  historyDiv.innerHTML = "";
+  p.paymentHistory?.forEach(h=>{
+    historyDiv.innerHTML += `
+      <div class="history-item">
+        ${h.entryType} – ₹${h.amount}
+        <br><small>${new Date(h.date).toLocaleString()}</small>
+      </div>`;
+  });
+}
+
+async function savePayment(){
+  const amt = Number(document.getElementById("addPaid").value);
+  const notes = document.getElementById("notes").value;
+
+  if (!amt || amt <= 0) {
+    alert("Enter a valid amount");
+    return;
+  }
+
+  await fetch(`${API}/patient/${id}`,{
+    method:"PUT",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:`Bearer ${token}`
+    },
+    body:JSON.stringify({ addPaid: amt, notes })
+  });
+
+  alert("Payment saved successfully");
+
+  document.getElementById("addPaid").value = "";
+  document.getElementById("notes").value = "";
+
+  loadPatient(); // 🔥 THIS updates Paid & Due
+}
+
+
+async function saveTreatments(){
+  let total=0, rows=[];
+const startDate = document.getElementById("startDate").value;
+const endDate   = document.getElementById("endDate").value;
+
+if (!startDate || !endDate) {
+  alert("Please select treatment start and end date");
+  return;
+  // ✅ RESET UI AFTER SAVE
+document.getElementById("startDate").value = "";
+document.getElementById("endDate").value = "";
+
+// reset days inputs
+document.querySelectorAll("#treatmentTable input").forEach(i => {
+  i.value = 0;
+});
+
+// reset totals
+document.getElementById("grandTotal").innerText = "0";
+
+}
+
+document.querySelectorAll("#treatmentTable tr").forEach(r=>{
+  const name = r.children[0].innerText;
+  const price = +r.children[1].innerText.replace("₹","");
+  const days = +r.querySelector("input").value;
+  const amt = price * days;
+
+  if (days > 0) {
+    rows.push({
+      treatmentName: name,
+      pricePerDay: price,
+      days,
+      totalAmount: amt
+    });
+    total += amt;
+  }
+});
+
+// ✅ ADD THIS AFTER LOOP
+if (!rows.length) {
+  alert("Enter days for at least one treatment");
+  return;
+}
+
+  await fetch(`${API}/patient/${id}/treatments/add`,{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:`Bearer ${token}`
+    },
+    body: JSON.stringify({
+  treatments: rows,
+  totalAmount: total,
+    startDate: startDate,   // ✅ ADD THIS LINE
+  endDate: endDate   // ✅ SEND MANUAL END DATE
+})
+
+  });
+  
+window.scrollTo({
+  top: 0,
+  behavior: "smooth"
+});
+
+  loadPatient();
+}
+function downloadInvoice(patientId = id, invoiceNumber = "") {
+  const token = localStorage.getItem("token");
+  window.open(
+    `${API}/invoice/${patientId}?token=${token}&invoice=${invoiceNumber}`
+  );
+}
+
+function goBack(){
+  location.href="dashboard.html";
+}
+
+async function deletePatient(){
+  if(confirm("Delete patient?")){
+    await fetch(`${API}/patient/${id}`,{
+      method:"DELETE",
+      headers:{ Authorization:`Bearer ${token}` }
+    });
+location.href="dashboard.html";
+  }
+}
+async function loadInvoiceHistory(patientId) {
+  const res = await fetch(
+    `${API}/patient/${patientId}/invoices`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  const invoices = await res.json();
+  const box = document.getElementById("invoiceHistory");
+
+  if (!invoices.length) {
+    box.innerHTML = "<p>No invoices generated yet</p>";
+    return;
+  }
+
+  box.innerHTML = invoices.map(inv => `
+    <div style="padding:10px;border-bottom:1px solid #e5e7eb">
+      <b>${inv.invoiceNumber}</b><br>
+      🗓 Start: ${inv.treatmentStartDate}<br>
+      🗓 End: ${inv.treatmentEndDate}<br>
+      💰 Total: ₹${inv.totalAmount} |
+      Paid: ₹${inv.paidAmount} |
+      Due: ₹${inv.dueAmount}<br>
+<button onclick="downloadInvoice('${patientId}', '${inv.invoiceNumber}')">
+  Download Invoice
+</button>
+
+    </div>
+  `).join("");
+}
+
+loadInvoiceHistory(id);
+
+loadPatient();
+</script>
+
+</body>
+</html>
