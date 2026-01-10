@@ -297,6 +297,39 @@ app.get("/patient/:id/invoices", auth, async (req, res) => {
   }
 });
 
+/* ================= DELETE INVOICE ================= */
+app.delete("/patient/:id/invoice/:invoiceNumber", auth, async (req, res) => {
+  try {
+    const { id, invoiceNumber } = req.params;
+
+    const patient = await Patient.findById(id);
+    if (!patient) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    if (!patient.invoices || !patient.invoices.length) {
+      return res.status(404).json({ message: "No invoices found" });
+    }
+
+    const beforeCount = patient.invoices.length;
+
+    patient.invoices = patient.invoices.filter(
+      inv => inv.invoiceNumber !== invoiceNumber
+    );
+
+    if (patient.invoices.length === beforeCount) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    await patient.save();
+
+    res.json({ message: "Invoice deleted successfully" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to delete invoice" });
+  }
+});
 
 //* ================= TREATMENT MASTER ================= */
 app.get("/treatments", auth, async (req, res) => {
@@ -545,6 +578,8 @@ res.setHeader(
 });
 
 /* ================= SERVER ================= */
-app.listen(5500, () => {
-  console.log("🚀 Server running on http://localhost:5500");
+const PORT = process.env.PORT || 5500;
+
+app.listen(PORT, () => {
+  console.log("🚀 Server running on port", PORT);
 });
