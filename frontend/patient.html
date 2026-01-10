@@ -277,7 +277,7 @@ td{
 </div>
 
 <script>
-const API = "http://localhost:5500";
+const API = "https://physio-website-nih7.onrender.com";
 const token = localStorage.getItem("token");
 const id = new URLSearchParams(location.search).get("id");
 
@@ -360,7 +360,7 @@ if (!p.treatmentHistory?.length) {
         <td>${name}</td>
         <td>₹${price}</td>
         <td>
-          <input type="number" value="0" min="0" oninput="recalc()">
+<input id="addPaid" type="number" min="1" step="1" placeholder="Enter payment amount">
         </td>
         <td class="rowTotal">₹0</td>
       </tr>
@@ -509,21 +509,46 @@ async function loadInvoiceHistory(patientId) {
     return;
   }
 
-  box.innerHTML = invoices.map(inv => `
-    <div style="padding:10px;border-bottom:1px solid #e5e7eb">
-      <b>${inv.invoiceNumber}</b><br>
-      🗓 Start: ${inv.treatmentStartDate}<br>
-      🗓 End: ${inv.treatmentEndDate}<br>
-      💰 Total: ₹${inv.totalAmount} |
-      Paid: ₹${inv.paidAmount} |
-      Due: ₹${inv.dueAmount}<br>
-<button onclick="downloadInvoice('${patientId}', '${inv.invoiceNumber}')">
-  Download Invoice
-</button>
+box.innerHTML = invoices.map(inv => `
+  <div style="padding:10px;border-bottom:1px solid #e5e7eb">
+    <b>${inv.invoiceNumber}</b><br>
 
-    </div>
-  `).join("");
+    🗓 Start: ${inv.treatmentStartDate}<br>
+    🗓 End: ${inv.treatmentEndDate}<br>
+
+    💰 Total: ₹${inv.totalAmount} |
+    Paid: ₹${inv.paidAmount} |
+    Due: ₹${inv.dueAmount}<br><br>
+
+    <button onclick="downloadInvoice('${patientId}', '${inv.invoiceNumber}')">
+      📄 Download
+    </button>
+
+    <button
+      style="margin-left:8px;background:#dc2626;color:white"
+      onclick="deleteInvoice('${patientId}', '${inv.invoiceNumber}')">
+      🗑 Delete
+    </button>
+  </div>
+`).join("");
 }
+async function deleteInvoice(patientId, invoiceNumber) {
+  if (!confirm("Delete this invoice permanently?")) return;
+
+  await fetch(
+    `${API}/patient/${patientId}/invoice/${invoiceNumber}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+
+  alert("Invoice deleted");
+  loadInvoiceHistory(patientId);
+}
+
 
 loadInvoiceHistory(id);
 

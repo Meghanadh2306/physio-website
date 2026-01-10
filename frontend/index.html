@@ -150,7 +150,7 @@ button:hover{opacity:.95}
   <!-- REAL HOSPITAL LOGO -->
   <div class="logo">
 <img
-  src="http://localhost:5500/assets/logo.jpg">
+  src="https://physio-website-nih7.onrender.com/assets/logo.jpg">
 
 
     <h2>Sri Physiotherapy Clinic</h2>
@@ -181,7 +181,7 @@ button:hover{opacity:.95}
 </div>
 
 <script>
-const API = "http://localhost:5500";
+const API = "https://physio-website-nih7.onrender.com";
 
 async function login(){
   const u = username.value.trim();
@@ -247,7 +247,6 @@ const res = await fetch(`${API}/admin/change-password`,{
   body:JSON.stringify({ oldPassword, newPassword })
 });
 const data = await res.json();
-
 if(!res.ok){
   alert(data.message || "Password change failed");
   return;
