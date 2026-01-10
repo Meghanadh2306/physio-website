@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script src="config.js"></script>
 <title>Treatment Price Master</title>
 
 <link rel="stylesheet"
@@ -116,13 +117,12 @@ td{
 </div>
 
 <script>
-const API = "https://physio-website-nih7.onrender.com";
 const token = localStorage.getItem("token");
 const list = document.getElementById("list");
 
 if(!token){
   alert("Session expired");
-location.href="/";
+location.href="index.html";
 }
 
 /* LOAD */

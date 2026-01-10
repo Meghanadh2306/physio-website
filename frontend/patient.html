@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Patient Billing & Treatment</title>
+<script src="config.js"></script>
 
 <style>
 :root{
@@ -277,11 +278,10 @@ td{
 </div>
 
 <script>
-const API = "https://physio-website-nih7.onrender.com";
 const token = localStorage.getItem("token");
 const id = new URLSearchParams(location.search).get("id");
 
-if(!token) location.href="/";
+if(!token) location.href="index.html";
 if(!id){ 
   alert("Invalid patient"); 
   location.href="dashboard.html"; 

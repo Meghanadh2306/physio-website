@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script src="config.js"></script>
 <title>Book Appointment</title>
 
 <style>
@@ -196,7 +197,6 @@ button:hover{opacity:.95}
 </div>
 
 <script>
-const API = "https://physio-website-nih7.onrender.com";
 const bookForm = document.getElementById("bookForm");
 const token = localStorage.getItem("token");
 if (!token) {

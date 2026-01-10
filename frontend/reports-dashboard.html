@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script src="config.js"></script>
 <title>Payment Dues & Reports</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -174,7 +175,6 @@ canvas{max-height:320px}
 </div>
 
 <script>
-const API="https://physio-website-nih7.onrender.com";
 const token=localStorage.getItem("token");
 if(!token) location.href="index.html";
 

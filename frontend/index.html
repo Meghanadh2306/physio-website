@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Hospital Admin Login</title>
+<script src="config.js"></script>
 <link rel="stylesheet"
  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
@@ -181,8 +182,6 @@ button:hover{opacity:.95}
 </div>
 
 <script>
-const API = "https://physio-website-nih7.onrender.com";
-
 async function login(){
   const u = username.value.trim();
   const p = password.value.trim();
@@ -208,7 +207,7 @@ async function login(){
     }
 
     localStorage.setItem("token", data.token);
-    location.href = "/frontend/dashboard.html";
+    location.href = "dashboard.html";
 
   }catch{
     error.innerText = "Server not reachable";
