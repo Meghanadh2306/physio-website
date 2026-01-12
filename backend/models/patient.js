@@ -13,12 +13,11 @@ const PatientSchema = new mongoose.Schema({
   notes: String,
   recommendedDoctor: String,
 
-  appointmentDate: String,
-endDate: String,   // ✅ MANUAL END DATE
+  // Past Years Details
+  pastMedicalHistory: String,
+  previousTreatments: String,
+  allergiesAndMeds: String,
 
-
-  treatmentHistory: [
-    {
       date: { type: Date, default: Date.now },
           startDate: String,   // ✅ ADD
     endDate: String,     // ✅ ADD

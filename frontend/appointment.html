@@ -210,6 +210,21 @@ button:hover{opacity:.95}
 
     <textarea id="problem" placeholder="Describe Patient Problem (Optional)"></textarea>
 
+    <div class="section">
+      <div class="section-title">Past Medical History (Optional)</div>
+      <textarea id="pastMedicalHistory" placeholder="Enter any previous treatments, surgeries, or medical conditions..."></textarea>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Previous Treatments</div>
+      <textarea id="previousTreatments" placeholder="Describe any treatments received in past years..."></textarea>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Allergies & Medications (Optional)</div>
+      <textarea id="allergiesAndMeds" placeholder="List any known allergies and current medications..."></textarea>
+    </div>
+
     <button type="submit">Confirm Appointment</button>
     <button type="button" class="back" onclick="goBack()">Back to Dashboard</button>
 
@@ -296,7 +311,10 @@ bookForm.addEventListener("submit", async function(e){
     appointmentDate: document.getElementById("appointment_date").value,
     treatments: treatments,
     problem: document.getElementById("problem").value.trim(),
-    recommendedDoctor: document.getElementById("recommendedDoctor").value
+    recommendedDoctor: document.getElementById("recommendedDoctor").value,
+    pastMedicalHistory: document.getElementById("pastMedicalHistory").value.trim(),
+    previousTreatments: document.getElementById("previousTreatments").value.trim(),
+    allergiesAndMeds: document.getElementById("allergiesAndMeds").value.trim()
   };
 
   // ✅ FORM VALIDATIONS
