@@ -9,7 +9,12 @@ const path = require("path");
 require("dotenv").config();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:3000", "http://localhost:5500", "https://physio-website-nih7.onrender.com"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
 
 /* ================= ROUTES ================= */
@@ -107,6 +112,14 @@ app.post("/patients", auth, async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
+    if (!treatments || treatments.length === 0) {
+      return res.status(400).json({ message: "Please select at least one treatment" });
+    }
+
+    if (!recommendedDoctor) {
+      return res.status(400).json({ message: "Please select a recommended doctor" });
+    }
+
     const patient = new Patient({
       name,
       age,
@@ -124,8 +137,8 @@ app.post("/patients", auth, async (req, res) => {
       paymentHistory: []
     });
 
-    await patient.save();
-    res.json({ message: "Appointment booked successfully" });
+    const savedPatient = await patient.save();
+    res.json({ message: "Appointment booked successfully", patientId: savedPatient._id });
   } catch (err) {
     console.error("❌ Appointment Booking Error:", err);
     res.status(500).json({ message: "Failed to book appointment", error: err.message });

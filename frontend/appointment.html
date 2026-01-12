@@ -356,6 +356,10 @@ bookForm.addEventListener("submit", async function(e){
   }
 
   try{
+    console.log("Sending request to:", `${API}/patients`);
+    console.log("Data:", data);
+    console.log("Token:", token ? "Present" : "Missing");
+
     const res = await fetch(`${API}/patients`, {
       method: "POST",
       headers: {
@@ -366,6 +370,8 @@ bookForm.addEventListener("submit", async function(e){
     });
 
     const result = await res.json();
+    console.log("Response Status:", res.status);
+    console.log("Response Data:", result);
 
     if(!res.ok){
       const errorMsg = result.message || result.error || "Booking failed";
@@ -379,6 +385,7 @@ bookForm.addEventListener("submit", async function(e){
 
   }catch(err){
     console.error("Booking Error:", err);
+    console.error("Error Stack:", err.stack);
     alert(`❌ Failed to book appointment: ${err.message}`);
   }
 });
