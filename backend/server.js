@@ -151,28 +151,29 @@ app.put("/patient/:id", auth, async (req, res) => {
   if (!p) return res.status(404).json({ message: "Patient not found" });
 
   const { addPaid = 0, notes } = req.body;
-if (addPaid > 0) {
-  const visit = p.treatmentHistory.at(-1);
-  if (!visit) {
-    return res.status(400).json({ message: "No active visit found" });
+  
+  if (addPaid > 0) {
+    const visit = p.treatmentHistory.at(-1);
+    if (!visit) {
+      return res.status(400).json({ message: "No active visit found. Please add treatments first." });
+    }
+
+    const visitPaid = visit.paidAmount || 0;
+    const visitDue  = visit.totalAmount - visitPaid;
+
+    if (addPaid > visitDue) {
+      return res.status(400).json({ message: "Payment exceeds due amount" });
+    }
+
+    visit.paidAmount = visitPaid + addPaid;
+    p.paidAmount += addPaid;
+
+    p.paymentHistory.push({
+      entryType: "Payment",
+      amount: addPaid,
+      date: new Date()
+    });
   }
-
-  const visitPaid = visit.paidAmount || 0;
-  const visitDue  = visit.totalAmount - visitPaid;
-
-  if (addPaid > visitDue) {
-    return res.status(400).json({ message: "Payment exceeds due amount" });
-  }
-
-  visit.paidAmount = visitPaid + addPaid;
-  p.paidAmount += addPaid;
-
-  p.paymentHistory.push({
-    entryType: "Payment",
-    amount: addPaid,
-    date: new Date()
-  });
-}
 
   if (notes) p.notes = notes;
   p.status = p.paidAmount >= p.totalAmount ? "Completed" : "Ongoing";

@@ -203,23 +203,8 @@ td{
 
   <!-- PAYMENT -->
   <div class="card section">
-    <h2>💳 Add Payment & Adjust Prices</h2>
+    <h2>💳 Add Payment</h2>
     <input id="addPaid" type="number" min="1" step="1" placeholder="Enter payment amount" required>
-    
-    <!-- TREATMENT PRICES EDIT -->
-    <div style="margin-top:16px; border:1px solid #cbd5e1; border-radius:10px; padding:12px; background:#f8fafc;">
-      <h3 style="margin-top:0; color:var(--primary-dark);">Edit Treatment Prices per Patient</h3>
-      <table style="width:100%; border-collapse:collapse;">
-        <thead>
-          <tr style="background:var(--primary); color:white;">
-            <th style="padding:10px; text-align:left;">Treatment</th>
-            <th style="padding:10px; text-align:center;">Price / Day</th>
-          </tr>
-        </thead>
-        <tbody id="paymentTreatmentsTable"></tbody>
-      </table>
-    </div>
-    
     <textarea id="notes" rows="3" placeholder="Notes (optional)"></textarea>
     <button class="primary" onclick="savePayment()" id="savePaymentBtn">Save Payment</button>
   </div>
@@ -250,8 +235,6 @@ td{
   </div>
 
 </div>
-
-
 
     <table>
       <thead>
@@ -327,7 +310,7 @@ function recalc(){
   let total = 0;
   document.querySelectorAll("#treatmentTable tr").forEach(r=>{
     const days = +r.querySelector(".daysInput").value || 0;
-    const price = +r.children[1].innerText.replace("₹","");
+    const price = +r.querySelector(".priceInput").value || 0;
     const amt = days * price;
     r.querySelector(".rowTotal").innerText = "₹" + amt;
     total += amt;
@@ -358,7 +341,7 @@ async function loadPatient(){
       table.innerHTML += `
         <tr>
           <td>${t.treatmentName}</td>
-          <td>₹${t.pricePerDay}</td>
+          <td><input type="number" class="priceInput" value="${t.pricePerDay}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
           <td><input type="number" class="daysInput" value="${t.days}" min="1" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
           <td class="rowTotal">₹${t.totalAmount}</td>
         </tr>`;
@@ -372,7 +355,7 @@ if (!p.treatmentHistory?.length) {
     table.innerHTML += `
       <tr>
         <td>${name}</td>
-        <td>₹${price}</td>
+        <td><input type="number" class="priceInput" value="${price || 0}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
         <td><input type="number" class="daysInput" min="1" step="1" placeholder="0" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
         <td class="rowTotal">₹0</td>
       </tr>
@@ -391,9 +374,6 @@ if (!p.treatmentHistory?.length) {
         <br><small>${new Date(h.date).toLocaleString()}</small>
       </div>`;
   });
-
-  // ✅ LOAD TREATMENT PRICES FOR PAYMENT EDIT
-  loadPaymentTreatmentPrices(p);
 }
 
 async function savePayment(){
@@ -411,16 +391,6 @@ async function savePayment(){
     return;
   }
 
-  // ✅ UPDATE TREATMENT PRICES IF CHANGED
-  let updatedPrices = {};
-  document.querySelectorAll("#paymentTreatmentsTable tr").forEach(row => {
-    const treatment = row.children[0].innerText;
-    const newPrice = +row.querySelector(".paymentPriceInput").value;
-    if (newPrice > 0) {
-      updatedPrices[treatment] = newPrice;
-    }
-  });
-
   try {
     const response = await fetch(`${API}/patient/${id}`,{
       method:"PUT",
@@ -430,13 +400,13 @@ async function savePayment(){
       },
       body:JSON.stringify({ 
         addPaid: amt, 
-        notes,
-        treatmentPrices: updatedPrices
+        notes
       })
     });
 
     if (!response.ok) {
-      alert("❌ Failed to save payment");
+      const error = await response.json();
+      alert(`❌ ${error.message || 'Failed to save payment'}`);
       return;
     }
 
@@ -469,7 +439,7 @@ async function saveTreatments(){
 
   document.querySelectorAll("#treatmentTable tr").forEach(r=>{
     const name = r.children[0].innerText;
-    const price = +r.children[1].innerText.replace("₹","");
+    const price = +r.querySelector(".priceInput").value;
     const days = +r.querySelector(".daysInput").value;
     const amt = price * days;
 
@@ -604,36 +574,6 @@ async function deleteInvoice(patientId, invoiceNumber) {
 
   alert("Invoice deleted");
   loadInvoiceHistory(patientId);
-}
-
-// ✅ LOAD TREATMENT PRICES FOR PAYMENT EDIT
-function loadPaymentTreatmentPrices(patient) {
-  const paymentTable = document.getElementById("paymentTreatmentsTable");
-  paymentTable.innerHTML = "";
-
-  if (patient.treatmentHistory?.length) {
-    patient.treatmentHistory.at(-1).treatments.forEach(t => {
-      paymentTable.innerHTML += `
-        <tr>
-          <td style="padding:10px;">${t.treatmentName}</td>
-          <td style="padding:10px; text-align:center;">
-            <input type="number" class="paymentPriceInput" value="${t.pricePerDay}" min="1" step="1" style="width:100px;padding:6px;border-radius:6px;border:1px solid #cbd5e1;">
-          </td>
-        </tr>
-      `;
-    });
-  } else if (Object.keys(treatmentPrices).length > 0) {
-    Object.entries(treatmentPrices).forEach(([name, price]) => {
-      paymentTable.innerHTML += `
-        <tr>
-          <td style="padding:10px;">${name}</td>
-          <td style="padding:10px; text-align:center;">
-            <input type="number" class="paymentPriceInput" value="${price}" min="1" step="1" style="width:100px;padding:6px;border-radius:6px;border:1px solid #cbd5e1;">
-          </td>
-        </tr>
-      `;
-    });
-  }
 }
 
 
