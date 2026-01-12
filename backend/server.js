@@ -10,7 +10,7 @@ require("dotenv").config();
 
 const app = express();
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:5500", "https://physio-website-nih7.onrender.com"],
+  origin: ["http://localhost:3000", "http://localhost:5500", "https://physio-website-nih7.onrender.com", "http://127.0.0.1:5500"],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
