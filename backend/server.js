@@ -95,6 +95,8 @@ app.post("/login", async (req, res) => {
 /* ================= BOOK APPOINTMENT ================= */
 app.post("/patients", auth, async (req, res) => {
   try {
+    console.log("📋 Received appointment request:", JSON.stringify(req.body, null, 2));
+    
     const {
       name,
       age,
@@ -109,14 +111,17 @@ app.post("/patients", auth, async (req, res) => {
 
     // BASIC VALIDATION
     if (!name || !age || !phone || !appointmentDate || !gender) {
+      console.warn("⚠️ Missing required fields:", { name, age, phone, appointmentDate, gender });
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     if (!treatments || treatments.length === 0) {
+      console.warn("⚠️ No treatments selected");
       return res.status(400).json({ message: "Please select at least one treatment" });
     }
 
     if (!recommendedDoctor) {
+      console.warn("⚠️ No doctor selected");
       return res.status(400).json({ message: "Please select a recommended doctor" });
     }
 
@@ -137,10 +142,18 @@ app.post("/patients", auth, async (req, res) => {
       paymentHistory: []
     });
 
+    console.log("💾 Saving patient to database...");
     const savedPatient = await patient.save();
+    console.log("✅ Patient saved successfully:", savedPatient._id);
     res.json({ message: "Appointment booked successfully", patientId: savedPatient._id });
   } catch (err) {
     console.error("❌ Appointment Booking Error:", err);
+    console.error("❌ Error Details:", {
+      message: err.message,
+      name: err.name,
+      code: err.code,
+      stack: err.stack
+    });
     res.status(500).json({ message: "Failed to book appointment", error: err.message });
   }
 });
