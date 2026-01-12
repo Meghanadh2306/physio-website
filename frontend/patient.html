@@ -242,7 +242,7 @@ td{
       <thead>
         <tr>
           <th>Treatment</th>
-          <th>Price / Day</th>
+          <th>Custom Price / Day</th>
           <th>Days</th>
           <th>Total</th>
         </tr>
@@ -311,8 +311,8 @@ async function loadTreatmentMaster(){
 function recalc(){
   let total = 0;
   document.querySelectorAll("#treatmentTable tr").forEach(r=>{
-    const days = +r.querySelector("input").value || 0;
-    const price = +r.children[1].innerText.replace("₹","");
+    const days = +r.querySelector(".daysInput").value || 0;
+    const price = +r.querySelector(".priceInput").value || 0;
     const amt = days * price;
     r.querySelector(".rowTotal").innerText = "₹" + amt;
     total += amt;
@@ -343,14 +343,13 @@ async function loadPatient(){
       table.innerHTML += `
         <tr>
           <td>${t.treatmentName}</td>
-          <td>₹${t.pricePerDay}</td>
-          <td><input type="number" value="${t.days}" oninput="recalc()"></td>
+          <td><input class="priceInput" type="number" value="${t.pricePerDay}" oninput="recalc()" style="width:100px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
+          <td><input class="daysInput" type="number" value="${t.days}" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
           <td class="rowTotal">₹${t.totalAmount}</td>
         </tr>`;
     });
   }
-  // ✅ SHOW ONLY APPOINTMENT-SELECTED TREATMENTS (FIRST VISIT)
-// ✅ FIRST VISIT – LOAD FROM TREATMENT MASTER
+  // ✅ FIRST VISIT – LOAD FROM TREATMENT MASTER WITH EDITABLE PRICE
 if (!p.treatmentHistory?.length) {
   Object.keys(treatmentPrices).forEach(name => {
     const price = treatmentPrices[name];
@@ -358,10 +357,8 @@ if (!p.treatmentHistory?.length) {
     table.innerHTML += `
       <tr>
         <td>${name}</td>
-        <td>₹${price}</td>
-        <td>
-<input id="addPaid" type="number" min="1" step="1" placeholder="Enter payment amount">
-        </td>
+        <td><input class="priceInput" type="number" value="${price}" oninput="recalc()" style="width:100px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
+        <td><input class="daysInput" type="number" min="1" step="1" placeholder="0" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
         <td class="rowTotal">₹0</td>
       </tr>
     `;
@@ -432,11 +429,11 @@ document.getElementById("grandTotal").innerText = "0";
 
 document.querySelectorAll("#treatmentTable tr").forEach(r=>{
   const name = r.children[0].innerText;
-  const price = +r.children[1].innerText.replace("₹","");
-  const days = +r.querySelector("input").value;
+  const price = +r.querySelector(".priceInput").value;
+  const days = +r.querySelector(".daysInput").value;
   const amt = price * days;
 
-  if (days > 0) {
+  if (days > 0 && price > 0) {
     rows.push({
       treatmentName: name,
       pricePerDay: price,
