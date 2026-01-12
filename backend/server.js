@@ -127,7 +127,8 @@ app.post("/patients", auth, async (req, res) => {
     await patient.save();
     res.json({ message: "Appointment booked successfully" });
   } catch (err) {
-    res.status(500).json({ message: "Failed to book appointment" });
+    console.error("❌ Appointment Booking Error:", err);
+    res.status(500).json({ message: "Failed to book appointment", error: err.message });
   }
 });
 

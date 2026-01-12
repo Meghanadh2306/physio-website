@@ -18,9 +18,11 @@ const PatientSchema = new mongoose.Schema({
   previousTreatments: String,
   allergiesAndMeds: String,
 
+  treatmentHistory: [
+    {
       date: { type: Date, default: Date.now },
-          startDate: String,   // ✅ ADD
-    endDate: String,     // ✅ ADD
+      startDate: String,
+      endDate: String,
       treatments: [
         {
           treatmentName: String,
@@ -29,7 +31,8 @@ const PatientSchema = new mongoose.Schema({
           totalAmount: Number
         }
       ],
-      totalAmount: Number
+      totalAmount: Number,
+      paidAmount: Number
     }
   ],
 
