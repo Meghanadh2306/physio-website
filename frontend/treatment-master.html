@@ -104,7 +104,6 @@ td{
   <thead>
     <tr>
       <th>Treatment</th>
-      <th>Price / Day (₹)</th>
       <th>Action</th>
     </tr>
   </thead>
@@ -140,16 +139,6 @@ async function loadTreatments(){
     <tr>
       <td><b>${t.name}</b> <span class="badge">Active</span></td>
       <td>
-        <input class="price-input"
-          id="price-${t._id}"
-          type="number"
-          value="${t.pricePerDay}">
-      </td>
-      <td>
-        <button class="update-btn"
-          onclick="updateTreatment('${t._id}')">
-          <i class="fa-solid fa-pen"></i>
-        </button>
         <button class="delete-btn"
           onclick="deleteTreatment('${t._id}')">
           <i class="fa-solid fa-trash"></i>
@@ -199,45 +188,6 @@ async function saveTreatment(){
   } catch (error) {
     console.error(error);
     alert("❌ Error saving treatment. Check console.");
-  }
-}
-
-/* UPDATE */
-async function updateTreatment(id){
-  const newPrice = document.getElementById(`price-${id}`).value;
-  const priceVal = Number(newPrice);
-
-  // ✅ FORM VALIDATION
-  if(!priceVal || priceVal <= 0){
-    alert("❌ Please enter a valid price (₹1 or more)");
-    return;
-  }
-
-  if(priceVal > 100000) {
-    alert("❌ Price cannot exceed ₹100,000");
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API}/treatments/${id}`,{
-      method:"PUT",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:`Bearer ${token}`
-      },
-      body:JSON.stringify({ pricePerDay: priceVal })
-    });
-
-    if(!res.ok) {
-      alert("❌ Failed to update treatment price");
-      return;
-    }
-
-    alert("✅ Treatment price updated");
-    loadTreatments();
-  } catch (error) {
-    console.error(error);
-    alert("❌ Error updating treatment. Check console.");
   }
 }
 
