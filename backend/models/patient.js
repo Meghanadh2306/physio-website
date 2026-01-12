@@ -7,7 +7,9 @@ const PatientSchema = new mongoose.Schema({
   address: String,
   phone: String,
 
-  appointmentDate: String,
+  // ✅ FIXED (STRING ➜ DATE)
+  appointmentDate: { type: Date, required: true },
+
   treatments: [String],
   problem: String,
   notes: String,
@@ -23,6 +25,7 @@ const PatientSchema = new mongoose.Schema({
       date: { type: Date, default: Date.now },
       startDate: String,
       endDate: String,
+
       treatments: [
         {
           treatmentName: String,
@@ -31,24 +34,31 @@ const PatientSchema = new mongoose.Schema({
           totalAmount: Number
         }
       ],
+
       totalAmount: Number,
-      paidAmount: Number
+
+      // ✅ SAFETY DEFAULT
+      paidAmount: { type: Number, default: 0 }
     }
   ],
 
   totalAmount: { type: Number, default: 0 },
   paidAmount: { type: Number, default: 0 },
-invoices: [
-  {
-    invoiceNumber: String,
-    treatmentStartDate: String,
-    treatmentEndDate: String,
-    totalAmount: Number,
-    paidAmount: Number,
-    dueAmount: Number,
-    createdAt: Date
-  }
-],
+
+  invoices: [
+    {
+      invoiceNumber: String,
+      treatmentStartDate: String,
+      treatmentEndDate: String,
+      totalAmount: Number,
+      paidAmount: Number,
+      dueAmount: Number,
+
+      // ✅ SAFETY DEFAULT
+      createdAt: { type: Date, default: Date.now }
+    }
+  ],
+
   paymentHistory: [
     {
       entryType: String,
@@ -59,7 +69,6 @@ invoices: [
 
   status: { type: String, default: "Ongoing" },
   createdAt: { type: Date, default: Date.now }
-  
 });
 
 module.exports = mongoose.model("Patient", PatientSchema);
