@@ -248,36 +248,42 @@ document.getElementById("bookForm").addEventListener("submit", async e => {
     .map(cb => cb.value);
 
   const data = {
-    name: name.value.trim(),
-    age: Number(age.value),
+    name: document.getElementById("name").value.trim(),
+    age: Number(document.getElementById("age").value),
     gender: document.querySelector('input[name="gender"]:checked')?.value,
-    address: address.value.trim(),
-    phone: phone.value.trim(),
-    appointmentDate: appointment_date.value,
+    address: document.getElementById("address").value.trim(),
+    phone: document.getElementById("phone").value.trim(),
+    appointmentDate: document.getElementById("appointment_date").value,
     treatments,
-    problem: problem.value.trim(),
-    recommendedDoctor: recommendedDoctor.value
+    problem: document.getElementById("problem").value.trim(),
+    recommendedDoctor: document.getElementById("recommendedDoctor").value
   };
 
-  if(data.name.length < 3) return alert("❌ Name must be at least 3 characters");
+  if(!data.name || data.name.length < 3) return alert("❌ Name must be at least 3 characters");
   if(!/^\d{10}$/.test(data.phone)) return alert("❌ Phone must be 10 digits");
   if(!data.gender) return alert("❌ Select gender");
   if(treatments.length === 0) return alert("❌ Select at least one treatment");
+  if(!data.recommendedDoctor) return alert("❌ Select a doctor");
 
-  const res = await fetch(`${API}/patients`, {
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      Authorization:`Bearer ${token}`
-    },
-    body:JSON.stringify(data)
-  });
+  try {
+    const res = await fetch(`${API}/patients`, {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:`Bearer ${token}`
+      },
+      body:JSON.stringify(data)
+    });
 
-  const result = await res.json();
-  if(!res.ok) return alert(`❌ ${result.message || "Booking failed"}`);
+    const result = await res.json();
+    if(!res.ok) return alert(`❌ ${result.message || "Booking failed"}`);
 
-  alert("✅ Appointment booked successfully");
-  location.href = "dashboard.html";
+    alert("✅ Appointment booked successfully");
+    location.href = "dashboard.html";
+  } catch(err) {
+    console.error("Error:", err);
+    alert(`❌ Error: ${err.message}`);
+  }
 });
 
 function goBack(){
