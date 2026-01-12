@@ -299,9 +299,43 @@ bookForm.addEventListener("submit", async function(e){
     recommendedDoctor: document.getElementById("recommendedDoctor").value
   };
 
-  // ✅ VALIDATION
-  if(!data.name || !data.age || !data.phone || !data.appointmentDate){
-    alert("❌ Please fill all required fields");
+  // ✅ FORM VALIDATIONS
+  if(!data.name || !data.name.length){
+    alert("❌ Please enter patient name");
+    return;
+  }
+
+  if(data.name.length < 3) {
+    alert("❌ Name must be at least 3 characters");
+    return;
+  }
+
+  if(!data.age || data.age <= 0 || data.age > 150){
+    alert("❌ Please enter a valid age (1-150)");
+    return;
+  }
+
+  if(!data.phone || data.phone.length < 10){
+    alert("❌ Please enter a valid 10-digit phone number");
+    return;
+  }
+
+  if(!data.address || data.address.length < 5){
+    alert("❌ Address must be at least 5 characters");
+    return;
+  }
+
+  if(!data.appointmentDate){
+    alert("❌ Please select appointment date");
+    return;
+  }
+
+  const appointmentDate = new Date(data.appointmentDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  if(appointmentDate < today){
+    alert("❌ Appointment date cannot be in the past");
     return;
   }
 
@@ -314,36 +348,35 @@ bookForm.addEventListener("submit", async function(e){
     alert("❌ Please select at least one treatment");
     return;
   }
-  if(!data.recommendedDoctor){
-  alert("❌ Please select a recommended doctor");
-  return;
-}
 
+  if(!data.recommendedDoctor){
+    alert("❌ Please select a recommended doctor");
+    return;
+  }
 
   try{
-const res = await fetch(`${API}/patients`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`
-  },
-  body: JSON.stringify(data)
-});
-
+    const res = await fetch(`${API}/patients`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
 
     const result = await res.json();
 
     if(!res.ok){
-      alert(result.message || "Booking failed");
+      alert(result.message || "❌ Booking failed");
       return;
     }
 
     alert("✅ Appointment booked successfully");
-window.location.href = "dashboard.html";
+    window.location.href = "dashboard.html";
 
   }catch(err){
     console.error(err);
-alert("❌ Failed to book appointment. Check server logs.");
+    alert("❌ Failed to book appointment. Check server logs.");
   }
 });
 

@@ -203,10 +203,25 @@ td{
 
   <!-- PAYMENT -->
   <div class="card section">
-    <h2>💳 Add Payment</h2>
-<input id="addPaid" type="number" min="1" step="1" placeholder="Enter payment amount">
+    <h2>💳 Add Payment & Adjust Prices</h2>
+    <input id="addPaid" type="number" min="1" step="1" placeholder="Enter payment amount" required>
+    
+    <!-- TREATMENT PRICES EDIT -->
+    <div style="margin-top:16px; border:1px solid #cbd5e1; border-radius:10px; padding:12px; background:#f8fafc;">
+      <h3 style="margin-top:0; color:var(--primary-dark);">Edit Treatment Prices per Patient</h3>
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="background:var(--primary); color:white;">
+            <th style="padding:10px; text-align:left;">Treatment</th>
+            <th style="padding:10px; text-align:center;">Price / Day</th>
+          </tr>
+        </thead>
+        <tbody id="paymentTreatmentsTable"></tbody>
+      </table>
+    </div>
+    
     <textarea id="notes" rows="3" placeholder="Notes (optional)"></textarea>
-    <button class="primary" onclick="savePayment()">Save Payment</button>
+    <button class="primary" onclick="savePayment()" id="savePaymentBtn">Save Payment</button>
   </div>
 
   <!-- TREATMENTS -->
@@ -242,7 +257,7 @@ td{
       <thead>
         <tr>
           <th>Treatment</th>
-          <th>Custom Price / Day</th>
+          <th>Price / Day</th>
           <th>Days</th>
           <th>Total</th>
         </tr>
@@ -312,7 +327,7 @@ function recalc(){
   let total = 0;
   document.querySelectorAll("#treatmentTable tr").forEach(r=>{
     const days = +r.querySelector(".daysInput").value || 0;
-    const price = +r.querySelector(".priceInput").value || 0;
+    const price = +r.children[1].innerText.replace("₹","");
     const amt = days * price;
     r.querySelector(".rowTotal").innerText = "₹" + amt;
     total += amt;
@@ -343,13 +358,13 @@ async function loadPatient(){
       table.innerHTML += `
         <tr>
           <td>${t.treatmentName}</td>
-          <td><input class="priceInput" type="number" value="${t.pricePerDay}" oninput="recalc()" style="width:100px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
-          <td><input class="daysInput" type="number" value="${t.days}" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
+          <td>₹${t.pricePerDay}</td>
+          <td><input type="number" class="daysInput" value="${t.days}" min="1" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
           <td class="rowTotal">₹${t.totalAmount}</td>
         </tr>`;
     });
   }
-  // ✅ FIRST VISIT – LOAD FROM TREATMENT MASTER WITH EDITABLE PRICE
+  // ✅ FIRST VISIT – LOAD FROM TREATMENT MASTER
 if (!p.treatmentHistory?.length) {
   Object.keys(treatmentPrices).forEach(name => {
     const price = treatmentPrices[name];
@@ -357,8 +372,8 @@ if (!p.treatmentHistory?.length) {
     table.innerHTML += `
       <tr>
         <td>${name}</td>
-        <td><input class="priceInput" type="number" value="${price}" oninput="recalc()" style="width:100px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
-        <td><input class="daysInput" type="number" min="1" step="1" placeholder="0" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
+        <td>₹${price}</td>
+        <td><input type="number" class="daysInput" min="1" step="1" placeholder="0" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
         <td class="rowTotal">₹0</td>
       </tr>
     `;
@@ -376,101 +391,134 @@ if (!p.treatmentHistory?.length) {
         <br><small>${new Date(h.date).toLocaleString()}</small>
       </div>`;
   });
+
+  // ✅ LOAD TREATMENT PRICES FOR PAYMENT EDIT
+  loadPaymentTreatmentPrices(p);
 }
 
 async function savePayment(){
   const amt = Number(document.getElementById("addPaid").value);
   const notes = document.getElementById("notes").value;
 
+  // ✅ FORM VALIDATION
   if (!amt || amt <= 0) {
-    alert("Enter a valid amount");
+    alert("❌ Please enter a valid payment amount");
     return;
   }
 
-  await fetch(`${API}/patient/${id}`,{
-    method:"PUT",
-    headers:{
-      "Content-Type":"application/json",
-      Authorization:`Bearer ${token}`
-    },
-    body:JSON.stringify({ addPaid: amt, notes })
+  if (amt > 100000) {
+    alert("❌ Payment amount cannot exceed ₹100,000");
+    return;
+  }
+
+  // ✅ UPDATE TREATMENT PRICES IF CHANGED
+  let updatedPrices = {};
+  document.querySelectorAll("#paymentTreatmentsTable tr").forEach(row => {
+    const treatment = row.children[0].innerText;
+    const newPrice = +row.querySelector(".paymentPriceInput").value;
+    if (newPrice > 0) {
+      updatedPrices[treatment] = newPrice;
+    }
   });
 
-  alert("Payment saved successfully");
+  try {
+    const response = await fetch(`${API}/patient/${id}`,{
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:`Bearer ${token}`
+      },
+      body:JSON.stringify({ 
+        addPaid: amt, 
+        notes,
+        treatmentPrices: updatedPrices
+      })
+    });
 
-  document.getElementById("addPaid").value = "";
-  document.getElementById("notes").value = "";
+    if (!response.ok) {
+      alert("❌ Failed to save payment");
+      return;
+    }
 
-  loadPatient(); // 🔥 THIS updates Paid & Due
+    alert("✅ Payment saved successfully");
+    document.getElementById("addPaid").value = "";
+    document.getElementById("notes").value = "";
+    loadPatient();
+  } catch (error) {
+    console.error(error);
+    alert("❌ Error saving payment. Check console.");
+  }
 }
 
 
 async function saveTreatments(){
   let total=0, rows=[];
-const startDate = document.getElementById("startDate").value;
-const endDate   = document.getElementById("endDate").value;
+  const startDate = document.getElementById("startDate").value;
+  const endDate   = document.getElementById("endDate").value;
 
-if (!startDate || !endDate) {
-  alert("Please select treatment start and end date");
-  return;
-  // ✅ RESET UI AFTER SAVE
-document.getElementById("startDate").value = "";
-document.getElementById("endDate").value = "";
-
-// reset days inputs
-document.querySelectorAll("#treatmentTable input").forEach(i => {
-  i.value = 0;
-});
-
-// reset totals
-document.getElementById("grandTotal").innerText = "0";
-
-}
-
-document.querySelectorAll("#treatmentTable tr").forEach(r=>{
-  const name = r.children[0].innerText;
-  const price = +r.querySelector(".priceInput").value;
-  const days = +r.querySelector(".daysInput").value;
-  const amt = price * days;
-
-  if (days > 0 && price > 0) {
-    rows.push({
-      treatmentName: name,
-      pricePerDay: price,
-      days,
-      totalAmount: amt
-    });
-    total += amt;
+  // ✅ FORM VALIDATION
+  if (!startDate || !endDate) {
+    alert("❌ Please select both treatment start and end dates");
+    return;
   }
-});
 
-// ✅ ADD THIS AFTER LOOP
-if (!rows.length) {
-  alert("Enter days for at least one treatment");
-  return;
-}
+  if (new Date(startDate) >= new Date(endDate)) {
+    alert("❌ End date must be after start date");
+    return;
+  }
 
-  await fetch(`${API}/patient/${id}/treatments/add`,{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      Authorization:`Bearer ${token}`
-    },
-    body: JSON.stringify({
-  treatments: rows,
-  totalAmount: total,
-    startDate: startDate,   // ✅ ADD THIS LINE
-  endDate: endDate   // ✅ SEND MANUAL END DATE
-})
+  document.querySelectorAll("#treatmentTable tr").forEach(r=>{
+    const name = r.children[0].innerText;
+    const price = +r.children[1].innerText.replace("₹","");
+    const days = +r.querySelector(".daysInput").value;
+    const amt = price * days;
 
+    if (days > 0) {
+      rows.push({
+        treatmentName: name,
+        pricePerDay: price,
+        days,
+        totalAmount: amt
+      });
+      total += amt;
+    }
   });
-  
-window.scrollTo({
-  top: 0,
-  behavior: "smooth"
-});
 
-  loadPatient();
+  if (!rows.length) {
+    alert("❌ Enter days for at least one treatment");
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API}/patient/${id}/treatments/add`,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:`Bearer ${token}`
+      },
+      body: JSON.stringify({
+        treatments: rows,
+        totalAmount: total,
+        startDate: startDate,
+        endDate: endDate
+      })
+    });
+
+    if (!response.ok) {
+      alert("❌ Failed to save treatments");
+      return;
+    }
+
+    alert("✅ Treatments saved successfully");
+    document.getElementById("startDate").value = "";
+    document.getElementById("endDate").value = "";
+    
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    loadPatient();
+  } catch (error) {
+    console.error(error);
+    alert("❌ Error saving treatments. Check console.");
+  }
 }
 function downloadInvoice(patientId = id, invoiceNumber = "") {
   const token = localStorage.getItem("token");
@@ -484,12 +532,24 @@ function goBack(){
 }
 
 async function deletePatient(){
-  if(confirm("Delete patient?")){
-    await fetch(`${API}/patient/${id}`,{
-      method:"DELETE",
-      headers:{ Authorization:`Bearer ${token}` }
-    });
-location.href="dashboard.html";
+  if(confirm("⚠️ Are you sure you want to delete this patient? This action cannot be undone.")){
+    try {
+      const response = await fetch(`${API}/patient/${id}`,{
+        method:"DELETE",
+        headers:{ Authorization:`Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        alert("❌ Failed to delete patient");
+        return;
+      }
+
+      alert("✅ Patient deleted successfully");
+      location.href="dashboard.html";
+    } catch (error) {
+      console.error(error);
+      alert("❌ Error deleting patient. Check console.");
+    }
   }
 }
 async function loadInvoiceHistory(patientId) {
@@ -544,6 +604,36 @@ async function deleteInvoice(patientId, invoiceNumber) {
 
   alert("Invoice deleted");
   loadInvoiceHistory(patientId);
+}
+
+// ✅ LOAD TREATMENT PRICES FOR PAYMENT EDIT
+function loadPaymentTreatmentPrices(patient) {
+  const paymentTable = document.getElementById("paymentTreatmentsTable");
+  paymentTable.innerHTML = "";
+
+  if (patient.treatmentHistory?.length) {
+    patient.treatmentHistory.at(-1).treatments.forEach(t => {
+      paymentTable.innerHTML += `
+        <tr>
+          <td style="padding:10px;">${t.treatmentName}</td>
+          <td style="padding:10px; text-align:center;">
+            <input type="number" class="paymentPriceInput" value="${t.pricePerDay}" min="1" step="1" style="width:100px;padding:6px;border-radius:6px;border:1px solid #cbd5e1;">
+          </td>
+        </tr>
+      `;
+    });
+  } else if (Object.keys(treatmentPrices).length > 0) {
+    Object.entries(treatmentPrices).forEach(([name, price]) => {
+      paymentTable.innerHTML += `
+        <tr>
+          <td style="padding:10px;">${name}</td>
+          <td style="padding:10px; text-align:center;">
+            <input type="number" class="paymentPriceInput" value="${price}" min="1" step="1" style="width:100px;padding:6px;border-radius:6px;border:1px solid #cbd5e1;">
+          </td>
+        </tr>
+      `;
+    });
+  }
 }
 
 

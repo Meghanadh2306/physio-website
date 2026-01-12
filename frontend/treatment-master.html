@@ -162,61 +162,119 @@ async function loadTreatments(){
 
 /* SAVE */
 async function saveTreatment(){
-  if(!treatmentName.value || !price.value){
-    alert("Enter treatment name & price");
+  const name = treatmentName.value.trim();
+  const priceVal = Number(price.value);
+
+  // ✅ FORM VALIDATIONS
+  if(!name || !name.length){
+    alert("❌ Please enter treatment name");
     return;
   }
 
-  const res = await fetch(`${API}/treatments`,{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      Authorization:`Bearer ${token}`
-    },
-    body:JSON.stringify({
-      name: treatmentName.value,
-      pricePerDay: Number(price.value)
-    })
-  });
-
-  if(!res.ok){
-    alert("Treatment already exists");
+  if(name.length < 3) {
+    alert("❌ Treatment name must be at least 3 characters");
     return;
   }
 
-  treatmentName.value="";
-  price.value="";
-  loadTreatments();
+  if(!priceVal || priceVal <= 0){
+    alert("❌ Please enter a valid price (₹1 or more)");
+    return;
+  }
+
+  if(priceVal > 100000) {
+    alert("❌ Price cannot exceed ₹100,000");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/treatments`,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:`Bearer ${token}`
+      },
+      body:JSON.stringify({
+        name: name,
+        pricePerDay: priceVal
+      })
+    });
+
+    if(!res.ok){
+      const error = await res.json();
+      alert(error.message || "❌ Treatment already exists");
+      return;
+    }
+
+    alert("✅ Treatment saved successfully");
+    treatmentName.value="";
+    price.value="";
+    loadTreatments();
+  } catch (error) {
+    console.error(error);
+    alert("❌ Error saving treatment. Check console.");
+  }
 }
 
 /* UPDATE */
 async function updateTreatment(id){
   const newPrice = document.getElementById(`price-${id}`).value;
+  const priceVal = Number(newPrice);
 
-  await fetch(`${API}/treatments/${id}`,{
-    method:"PUT",
-    headers:{
-      "Content-Type":"application/json",
-      Authorization:`Bearer ${token}`
-    },
-    body:JSON.stringify({ pricePerDay:Number(newPrice) })
-  });
+  // ✅ FORM VALIDATION
+  if(!priceVal || priceVal <= 0){
+    alert("❌ Please enter a valid price (₹1 or more)");
+    return;
+  }
 
-  alert("✅ Price updated");
-  loadTreatments();
+  if(priceVal > 100000) {
+    alert("❌ Price cannot exceed ₹100,000");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/treatments/${id}`,{
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:`Bearer ${token}`
+      },
+      body:JSON.stringify({ pricePerDay: priceVal })
+    });
+
+    if(!res.ok) {
+      alert("❌ Failed to update treatment price");
+      return;
+    }
+
+    alert("✅ Treatment price updated");
+    loadTreatments();
+  } catch (error) {
+    console.error(error);
+    alert("❌ Error updating treatment. Check console.");
+  }
 }
 
 /* DELETE */
 async function deleteTreatment(id){
-  if(!confirm("Delete this treatment?")) return;
+  if(!confirm("⚠️ Are you sure you want to delete this treatment? This action cannot be undone.")) return;
 
-  await fetch(`${API}/treatments/${id}`,{
-    method:"DELETE",
-    headers:{ Authorization:`Bearer ${token}` }
-  });
+  try {
+    const res = await fetch(`${API}/treatments/${id}`,{
+      method:"DELETE",
+      headers:{ Authorization:`Bearer ${token}` }
+    });
 
-  alert("🗑 Treatment deleted");
-  loadTreatments();
+    if(!res.ok) {
+      alert("❌ Failed to delete treatment");
+      return;
+    }
+
+    alert("✅ Treatment deleted successfully");
+    loadTreatments();
+  } catch (error) {
+    console.error(error);
+    alert("❌ Error deleting treatment. Check console.");
+  }
 }
 
 function goBack(){
