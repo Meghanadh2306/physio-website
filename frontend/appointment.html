@@ -352,8 +352,9 @@ bookForm.addEventListener("submit", async function(e){
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  if(appointmentDate < today){
-    alert("❌ Appointment date cannot be in the past");
+  // Only check for future dates if patient is "New"
+  if(data.patientType === "New" && appointmentDate < today){
+    alert("❌ Appointment date cannot be in the past for new clients");
     return;
   }
 
