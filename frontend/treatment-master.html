@@ -32,7 +32,7 @@ h2{
 }
 .form{
   display:grid;
-  grid-template-columns:2fr 1fr auto;
+  grid-template-columns:2fr auto;
   gap:12px;
   margin-bottom:25px;
 }
@@ -95,7 +95,6 @@ td{
 <!-- ADD NEW -->
 <div class="form">
   <input id="treatmentName" placeholder="Treatment Name">
-  <input id="price" type="number" placeholder="Price / Day">
   <button class="save-btn" onclick="saveTreatment()">
     <i class="fa-solid fa-plus"></i> Save
   </button>
@@ -163,7 +162,6 @@ async function loadTreatments(){
 /* SAVE */
 async function saveTreatment(){
   const name = treatmentName.value.trim();
-  const priceVal = Number(price.value);
 
   // ✅ FORM VALIDATIONS
   if(!name || !name.length){
@@ -176,16 +174,6 @@ async function saveTreatment(){
     return;
   }
 
-  if(!priceVal || priceVal <= 0){
-    alert("❌ Please enter a valid price (₹1 or more)");
-    return;
-  }
-
-  if(priceVal > 100000) {
-    alert("❌ Price cannot exceed ₹100,000");
-    return;
-  }
-
   try {
     const res = await fetch(`${API}/treatments`,{
       method:"POST",
@@ -195,7 +183,7 @@ async function saveTreatment(){
       },
       body:JSON.stringify({
         name: name,
-        pricePerDay: priceVal
+        pricePerDay: 0
       })
     });
 
@@ -205,9 +193,8 @@ async function saveTreatment(){
       return;
     }
 
-    alert("✅ Treatment saved successfully");
+    alert("✅ Treatment added successfully");
     treatmentName.value="";
-    price.value="";
     loadTreatments();
   } catch (error) {
     console.error(error);
