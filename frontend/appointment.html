@@ -368,7 +368,9 @@ bookForm.addEventListener("submit", async function(e){
     const result = await res.json();
 
     if(!res.ok){
-      alert(result.message || "❌ Booking failed");
+      const errorMsg = result.message || result.error || "Booking failed";
+      console.error("Server Error:", result);
+      alert(`❌ ${errorMsg}`);
       return;
     }
 
@@ -376,8 +378,8 @@ bookForm.addEventListener("submit", async function(e){
     window.location.href = "dashboard.html";
 
   }catch(err){
-    console.error(err);
-    alert("❌ Failed to book appointment. Check server logs.");
+    console.error("Booking Error:", err);
+    alert(`❌ Failed to book appointment: ${err.message}`);
   }
 });
 
