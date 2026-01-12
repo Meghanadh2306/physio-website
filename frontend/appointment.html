@@ -208,9 +208,6 @@ if (!token) {
   location.href = "index.html";
 }
 
-const today = new Date().toISOString().split("T")[0];
-document.getElementById("appointment_date").min = today;
-
 /* LOAD TREATMENTS */
 async function loadTreatments(){
   const res = await fetch(`${API}/treatments`, {
