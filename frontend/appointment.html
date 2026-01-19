@@ -250,9 +250,7 @@ document.getElementById("bookForm").addEventListener("submit", async e => {
     gender: document.querySelector('input[name="gender"]:checked')?.value,
     address: document.getElementById("address").value.trim(),
     phone: document.getElementById("phone").value.trim(),
-appointmentDate: new Date(
-  document.getElementById("appointment_date").value
-),
+    appointmentDate: document.getElementById("appointment_date").value,
     treatments,
     problem: document.getElementById("problem").value.trim(),
     recommendedDoctor: document.getElementById("recommendedDoctor").value
