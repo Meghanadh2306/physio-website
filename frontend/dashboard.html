@@ -340,20 +340,24 @@ body.dark .modal-body textarea{
 }
 
 .section-divider{
-  padding:16px 0;
-  margin:16px 0;
-  border-top:2px dashed #e0f2f1;
-  border-bottom:2px dashed #e0f2f1;
+  padding:14px 16px;
+  margin:20px 0 16px 0;
+  background:linear-gradient(135deg, rgba(20,184,166,0.1), rgba(15,118,110,0.1));
+  border-left:4px solid var(--secondary);
+  border-radius:8px;
   font-weight:700;
   color:var(--primary);
   font-size:13px;
   text-transform:uppercase;
   letter-spacing:0.5px;
+  display:flex;
+  align-items:center;
+  gap:8px;
 }
 
 body.dark .section-divider{
-  border-top:2px dashed #064e3b;
-  border-bottom:2px dashed #064e3b;
+  background:linear-gradient(135deg, rgba(20,184,166,0.15), rgba(15,118,110,0.15));
+  border-left:4px solid var(--secondary);
 }
 
 .modal-footer{
@@ -399,15 +403,17 @@ body.dark .modal-footer{
 }
 
 .treatment-list{
-  background:#f0fdf9;
-  border:2px solid #ccf0ee;
+  background:linear-gradient(135deg, #f0fdf9, #e0f7f4);
+  border:2px solid #a3e4dd;
   border-radius:12px;
-  padding:14px;
+  padding:16px;
   margin-bottom:16px;
+  max-height:300px;
+  overflow-y:auto;
 }
 
 body.dark .treatment-list{
-  background:#064e3b;
+  background:linear-gradient(135deg, #064e3b, #0d5e52);
   border:2px solid #0f766e;
 }
 
@@ -415,15 +421,28 @@ body.dark .treatment-list{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  padding:10px 12px;
+  padding:12px 14px;
   background:white;
-  border-radius:8px;
-  margin-bottom:8px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  margin-bottom:10px;
   gap:12px;
+  box-shadow:0 2px 4px rgba(0,0,0,0.05);
+  transition:all 0.2s;
+}
+
+.treatment-item:hover{
+  box-shadow:0 4px 8px rgba(0,0,0,0.1);
+  border-color:var(--secondary);
 }
 
 body.dark .treatment-item{
-  background:#111827;
+  background:#1f2937;
+  border:1px solid #374151;
+}
+
+body.dark .treatment-item:hover{
+  border-color:var(--secondary);
 }
 
 .treatment-item:last-child{
@@ -453,49 +472,78 @@ body.dark .treatment-item-date{
   background:#dc2626;
   color:white;
   border:none;
-  padding:6px 10px;
+  padding:6px 12px;
   border-radius:6px;
   cursor:pointer;
   font-size:12px;
   font-weight:600;
   transition:all 0.3s;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  white-space:nowrap;
 }
 
 .remove-treatment-btn:hover{
   background:#b91c1c;
-  transform:scale(1.05);
+  transform:translateY(-2px);
+  box-shadow:0 4px 8px rgba(220,38,38,0.3);
 }
 
 .add-treatment-row{
   display:flex;
-  gap:12px;
+  gap:10px;
   align-items:flex-end;
   margin-top:12px;
 }
 
 .add-treatment-row select{
   flex:1;
-  padding:10px 12px;
-  border-radius:8px;
+  padding:11px 14px;
+  border-radius:10px;
   border:2px solid #cbd5e1;
   font-size:14px;
+  background:white;
+  color:var(--text);
+  transition:all 0.3s;
+  font-family:"Segoe UI", Arial;
+}
+
+body.dark .add-treatment-row select{
+  background:#1f2937;
+  color:#f9fafb;
+  border:2px solid #374151;
+}
+
+.add-treatment-row select:focus{
+  border-color:var(--secondary);
+  box-shadow:0 0 0 3px rgba(20,184,166,0.1);
+  outline:none;
 }
 
 .add-treatment-row button{
-  padding:10px 16px;
-  background:var(--secondary);
+  padding:11px 18px;
+  background:linear-gradient(135deg, var(--secondary), #06b6d4);
   color:white;
   border:none;
-  border-radius:8px;
+  border-radius:10px;
   cursor:pointer;
   font-weight:600;
   white-space:nowrap;
   transition:all 0.3s;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  box-shadow:0 4px 12px rgba(20,184,166,0.3);
 }
 
 .add-treatment-row button:hover{
-  background:var(--primary);
   transform:translateY(-2px);
+  box-shadow:0 6px 16px rgba(20,184,166,0.4);
+}
+
+.add-treatment-row button:active{
+  transform:translateY(0);
 }
 
 </style>
@@ -662,9 +710,9 @@ body.dark .treatment-item-date{
       <div class="section-divider"><i class="fa-solid fa-history"></i> Treatment History</div>
       
       <div class="form-group form-row full">
-        <label><i class="fa-solid fa-list"></i> Treatments for this Patient</label>
+        <label><i class="fa-solid fa-list"></i> Treatments for this Patient <span id="treatmentCount" style="background:var(--secondary);color:white;padding:2px 10px;border-radius:14px;font-size:12px;font-weight:700;margin-left:8px;">0</span></label>
         <div class="treatment-list" id="treatmentListContainer">
-          <p style="color:#999;text-align:center;margin:0;">No treatments added yet</p>
+          <p style="color:#999;text-align:center;margin:0;padding:20px 0;">📋 No treatments added yet</p>
         </div>
       </div>
 
@@ -865,9 +913,13 @@ async function loadTreatments(){
 
 function displayTreatments(){
   const container = document.getElementById("treatmentListContainer");
+  const countBadge = document.getElementById("treatmentCount");
+  
+  // Update treatment count badge
+  countBadge.innerText = patientTreatmentsList.length;
   
   if(patientTreatmentsList.length === 0){
-    container.innerHTML = `<p style="color:#999;text-align:center;margin:0;">No treatments added yet</p>`;
+    container.innerHTML = `<p style="color:#999;text-align:center;margin:0;padding:20px 0;">📋 No treatments added yet</p>`;
     return;
   }
   

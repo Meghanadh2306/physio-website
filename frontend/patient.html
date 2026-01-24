@@ -521,7 +521,7 @@ async function saveTreatments(){
   }
 
   document.querySelectorAll("#treatmentTable tr").forEach(r=>{
-    const name = r.children[0].innerText;
+    const name = r.children[0].innerText.replace(/\s*\(Previous\)\s*/g, '').trim();
     const price = +r.querySelector(".priceInput").value;
     const days = +r.querySelector(".daysInput").value;
     const amt = price * days;
