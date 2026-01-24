@@ -373,25 +373,24 @@ async function loadPatient(){
   let allTreatmentsToDisplay = [];
   let treatmentNamesAdded = new Set(); // Track unique treatment names
 
-  // Add from treatment history (previous visits)
+  // Add from treatment history - ONLY from the LATEST visit to avoid duplicates
   if(p.treatmentHistory?.length){
-    p.treatmentHistory.forEach(history => {
-      if(history.treatments){
-        history.treatments.forEach(t => {
-          const baseName = t.treatmentName.replace(/\s*\(Previous\)\s*/g, '').trim();
-          if(!treatmentNamesAdded.has(baseName)){
-            treatmentNamesAdded.add(baseName);
-            allTreatmentsToDisplay.push({
-              name: t.treatmentName,
-              price: t.pricePerDay,
-              days: t.days,
-              total: t.totalAmount,
-              isFromHistory: true
-            });
-          }
-        });
-      }
-    });
+    const latestVisit = p.treatmentHistory[p.treatmentHistory.length - 1];
+    if(latestVisit && latestVisit.treatments){
+      latestVisit.treatments.forEach(t => {
+        const baseName = t.treatmentName.replace(/\s*\(Previous\)\s*/g, '').trim();
+        if(!treatmentNamesAdded.has(baseName)){
+          treatmentNamesAdded.add(baseName);
+          allTreatmentsToDisplay.push({
+            name: t.treatmentName,
+            price: t.pricePerDay,
+            days: t.days,
+            total: t.totalAmount,
+            isFromHistory: true
+          });
+        }
+      });
+    }
   }
 
   // Add from newly assigned treatments (from dashboard) - ALWAYS add these
