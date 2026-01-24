@@ -385,45 +385,74 @@ async function loadPatient(){
 
   table.innerHTML = "";
 
+  // ✅ COLLECT ALL TREATMENTS (OLD + NEW)
+  let allTreatmentsToDisplay = [];
+
+  // Add from treatment history (previous visits)
   if(p.treatmentHistory?.length){
-    p.treatmentHistory.at(-1).treatments.forEach(t=>{
-      table.innerHTML += `
-        <tr>
-          <td>${t.treatmentName}</td>
-          <td><input type="number" class="priceInput" value="${t.pricePerDay}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
-          <td><input type="number" class="daysInput" value="${t.days}" min="1" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
-          <td class="rowTotal">₹${t.totalAmount}</td>
-        </tr>`;
+    p.treatmentHistory.forEach(history => {
+      if(history.treatments){
+        history.treatments.forEach(t => {
+          allTreatmentsToDisplay.push({
+            name: t.treatmentName,
+            price: t.pricePerDay,
+            days: t.days,
+            total: t.totalAmount,
+            isFromHistory: true
+          });
+        });
+      }
     });
   }
-  // ✅ FIRST VISIT – LOAD FROM TREATMENT MASTER
-if (!p.treatmentHistory?.length) {
-  Object.keys(treatmentPrices).forEach(name => {
-    const price = treatmentPrices[name];
 
-    table.innerHTML += `
-      <tr>
-        <td>${name}</td>
-        <td><input type="number" class="priceInput" value="${price || 0}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
-        <td><input type="number" class="daysInput" min="1" step="1" placeholder="0" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
-        <td class="rowTotal">₹0</td>
-      </tr>
-    `;
-  });
-}
+  // Add from newly assigned treatments (if no history yet)
+  if(!p.treatmentHistory?.length && p.treatments && p.treatments.length > 0){
+    p.treatments.forEach(treatmentId => {
+      const treatment = treatmentData[treatmentId];
+      if(treatment){
+        // Check if this treatment is already added to avoid duplicates
+        const isDuplicate = allTreatmentsToDisplay.some(t => t.name === treatment.name);
+        if(!isDuplicate){
+          allTreatmentsToDisplay.push({
+            name: treatment.name,
+            price: treatment.pricePerDay || 0,
+            days: 0,
+            total: 0,
+            isFromHistory: false
+          });
+        }
+      }
+    });
+  }
 
+  // Render treatments
+  if(allTreatmentsToDisplay.length > 0){
+    allTreatmentsToDisplay.forEach((t, idx) => {
+      table.innerHTML += `
+        <tr>
+          <td>${t.name} ${t.isFromHistory ? '<small style="color:#999;">(Previous)</small>' : ''}</td>
+          <td><input type="number" class="priceInput" value="${t.price}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
+          <td><input type="number" class="daysInput" value="${t.days || 0}" min="0" step="1" oninput="recalc()" placeholder="0" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
+          <td class="rowTotal">₹${t.total || 0}</td>
+        </tr>
+      `;
+    });
+  }
+  // ✅ FALLBACK - SHOW ALL TREATMENTS FROM MASTER IF NO HISTORY AND NO ASSIGNED TREATMENTS
+  else {
+    Object.keys(treatmentPrices).forEach(name => {
+      const price = treatmentPrices[name];
 
-  recalc();
-
-  historyDiv.innerHTML = "";
-  p.paymentHistory?.forEach((h, idx)=>{
-    historyDiv.innerHTML += `
-      <div class="history-item" style="display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          ${h.entryType} – ₹${h.amount}
-          ${h.paymentType ? `<br><small>💳 ${h.paymentType}</small>` : ''}
-          <br><small>${new Date(h.date).toLocaleString()}</small>
-        </div>
+      table.innerHTML += `
+        <tr>
+          <td>${name}</td>
+          <td><input type="number" class="priceInput" value="${price || 0}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
+          <td><input type="number" class="daysInput" min="1" step="1" placeholder="0" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
+          <td class="rowTotal">₹0</td>
+        </tr>
+      `;
+    });
+  }
         <button class="danger" style="padding:8px 12px; font-size:13px;" onclick="deletePayment(${idx})">🗑 Delete</button>
       </div>`;
   });
