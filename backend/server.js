@@ -342,8 +342,15 @@ patient.invoices.push({
 
 // DELETE PATIENT
 app.delete("/patient/:id", auth, async (req, res) => {
-  await Patient.findByIdAndDelete(req.params.id);
-  res.json({ message: "Patient deleted" });
+  try {
+    const result = await Patient.findByIdAndDelete(req.params.id);
+    if (!result) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+    res.json({ message: "Patient deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete patient", error: error.message });
+  }
 });
 
 //doctor list
@@ -360,8 +367,15 @@ app.get("/doctors", auth, async (req, res) => {
 });
 //delete doctor
 app.delete("/doctors/:id", auth, async (req, res) => {
-  await Doctor.findByIdAndDelete(req.params.id);
-  res.json({ message: "Doctor deleted" });
+  try {
+    const result = await Doctor.findByIdAndDelete(req.params.id);
+    if (!result) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+    res.json({ message: "Doctor deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete doctor", error: error.message });
+  }
 });
 
 /* ================= PATIENT LIST ================= */

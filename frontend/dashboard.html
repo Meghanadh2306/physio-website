@@ -828,11 +828,16 @@ async function deletePatientFromDashboard(id, name){
     try {
       const response = await fetch(`${API}/patient/${id}`,{
         method:"DELETE",
-        headers:{ Authorization:`Bearer ${token}` }
+        headers:{ 
+          Authorization:`Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        alert("❌ Failed to delete patient");
+        alert(`❌ ${data.message || "Failed to delete patient"}`);
         return;
       }
 
