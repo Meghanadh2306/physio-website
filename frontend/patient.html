@@ -156,6 +156,62 @@ td{
   display:flex;
   gap:12px;
 }
+
+/* MODAL STYLES */
+.modal{
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,.5);
+  justify-content:center;
+  align-items:center;
+  z-index:1000;
+}
+.modal.active{display:flex}
+.modal-content{
+  background:white;
+  border-radius:16px;
+  padding:26px;
+  max-width:500px;
+  width:90%;
+  box-shadow:0 20px 60px rgba(0,0,0,.3);
+}
+.modal-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:16px;
+}
+.modal-header h3{margin:0}
+.close-modal{
+  background:none;
+  border:none;
+  font-size:24px;
+  cursor:pointer;
+  padding:0;
+  color:#64748b;
+}
+.modal-body{
+  margin-bottom:20px;
+}
+.modal-body label{
+  font-weight:600;
+  display:block;
+  margin-bottom:8px;
+}
+.modal-footer{
+  display:flex;
+  gap:12px;
+  justify-content:flex-end;
+}
+.modal-footer button{
+  margin-top:0;
+  padding:10px 16px;
+  font-size:14px;
+}
 </style>
 </head>
 
@@ -273,7 +329,7 @@ td{
   <!-- ACTIONS -->
   <div class="actions">
     <button class="invoice" onclick="downloadInvoice()">📄 Invoice</button>
-    <button class="danger" onclick="deletePatient()">🗑 Delete</button>
+    <button class="secondary" onclick="openEditTreatmentModal()">✏️ Edit Treatment History</button>
   </div>
 
   <div class="section">
@@ -285,6 +341,38 @@ td{
   <div class="card section">
     <h2>📜 Payment History</h2>
     <div id="history" class="history"></div>
+  </div>
+
+  <!-- EDIT TREATMENT HISTORY MODAL -->
+  <div id="editTreatmentModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>✏️ Edit Treatment History</h3>
+        <button class="close-modal" onclick="closeEditTreatmentModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <label for="treatmentSelect">Select Treatment Visit:</label>
+        <select id="treatmentSelect" style="width:100%;padding:12px;border-radius:10px;border:1px solid #cbd5e1;margin-top:8px;font-size:15px;" onchange="loadTreatmentDetails()">
+          <option value="">-- Select a visit --</option>
+        </select>
+        
+        <div style="margin-top:16px;">
+          <label for="editTotalAmount">Total Treatment Payment (₹):</label>
+          <input type="number" id="editTotalAmount" min="0" step="1" placeholder="Enter total amount" style="margin-top:8px;">
+        </div>
+
+        <div style="margin-top:12px; background:#f8fafc; padding:12px; border-radius:10px; font-size:14px;">
+          <b>Current Details:</b><br>
+          Start Date: <span id="displayStartDate">—</span><br>
+          End Date: <span id="displayEndDate">—</span><br>
+          Number of Days: <span id="displayDays">—</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" onclick="closeEditTreatmentModal()">Cancel</button>
+        <button class="primary" onclick="updateTreatmentAmount()">💾 Update</button>
+      </div>
+    </div>
   </div>
 
 
@@ -340,6 +428,9 @@ async function loadPatient(){
     headers:{ Authorization:`Bearer ${token}` }
   });
   const p = await res.json();
+  
+  // Store patient data for modal use
+  currentPatientData = p;
 
   pname.innerText = p.name;
   pphone.innerText = p.phone;
@@ -626,6 +717,89 @@ async function deleteInvoice(patientId, invoiceNumber) {
   loadInvoiceHistory(patientId);
 }
 
+// EDIT TREATMENT HISTORY FUNCTIONS
+let currentPatientData = null;
+
+function openEditTreatmentModal(){
+  if(!currentPatientData?.treatmentHistory?.length){
+    alert("❌ No treatment history found");
+    return;
+  }
+  
+  const select = document.getElementById("treatmentSelect");
+  select.innerHTML = '<option value="">-- Select a visit --</option>';
+  
+  currentPatientData.treatmentHistory.forEach((visit, idx) => {
+    const startDate = new Date(visit.startDate).toLocaleDateString();
+    const endDate = new Date(visit.endDate).toLocaleDateString();
+    select.innerHTML += `<option value="${idx}">Visit ${idx + 1} (${startDate} - ${endDate}) - ₹${visit.totalAmount}</option>`;
+  });
+  
+  document.getElementById("editTreatmentModal").classList.add("active");
+}
+
+function closeEditTreatmentModal(){
+  document.getElementById("editTreatmentModal").classList.remove("active");
+  document.getElementById("treatmentSelect").value = "";
+  document.getElementById("editTotalAmount").value = "";
+}
+
+function loadTreatmentDetails(){
+  const visitIndex = Number(document.getElementById("treatmentSelect").value);
+  
+  if(isNaN(visitIndex) || !currentPatientData?.treatmentHistory?.[visitIndex]){
+    return;
+  }
+  
+  const visit = currentPatientData.treatmentHistory[visitIndex];
+  const startDate = new Date(visit.startDate);
+  const endDate = new Date(visit.endDate);
+  const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+  
+  document.getElementById("editTotalAmount").value = visit.totalAmount || 0;
+  document.getElementById("displayStartDate").innerText = startDate.toLocaleDateString();
+  document.getElementById("displayEndDate").innerText = endDate.toLocaleDateString();
+  document.getElementById("displayDays").innerText = days;
+}
+
+async function updateTreatmentAmount(){
+  const visitIndex = Number(document.getElementById("treatmentSelect").value);
+  const newAmount = Number(document.getElementById("editTotalAmount").value);
+  
+  if(isNaN(visitIndex)){
+    alert("❌ Please select a treatment visit");
+    return;
+  }
+  
+  if(!newAmount || newAmount <= 0){
+    alert("❌ Please enter a valid amount");
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API}/patient/${id}/treatment/${visitIndex}`,{
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:`Bearer ${token}`
+      },
+      body:JSON.stringify({ totalAmount: newAmount })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      alert(`❌ ${error.message || 'Failed to update treatment'}`);
+      return;
+    }
+
+    alert("✅ Treatment amount updated successfully");
+    closeEditTreatmentModal();
+    loadPatient();
+  } catch (error) {
+    console.error(error);
+    alert("❌ Error updating treatment. Check console.");
+  }
+}
 
 loadInvoiceHistory(id);
 

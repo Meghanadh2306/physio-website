@@ -309,6 +309,46 @@ patient.invoices.push({
   }
 });
 
+// UPDATE TREATMENT AMOUNT
+app.put("/patient/:id/treatment/:visitIndex", auth, async (req, res) => {
+  try {
+    const patient = await Patient.findById(req.params.id);
+    if (!patient) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    const visitIndex = parseInt(req.params.visitIndex);
+    const { totalAmount } = req.body;
+
+    if (isNaN(visitIndex) || visitIndex < 0 || visitIndex >= patient.treatmentHistory.length) {
+      return res.status(400).json({ message: "Invalid visit index" });
+    }
+
+    if (!totalAmount || totalAmount <= 0) {
+      return res.status(400).json({ message: "Invalid amount" });
+    }
+
+    const visit = patient.treatmentHistory[visitIndex];
+    const oldAmount = visit.totalAmount || 0;
+    const difference = totalAmount - oldAmount;
+
+    // Update the visit amount
+    visit.totalAmount = totalAmount;
+
+    // Update patient totals
+    patient.totalAmount += difference;
+    patient.status = patient.paidAmount >= patient.totalAmount ? "Completed" : "Ongoing";
+
+    await patient.save();
+
+    res.json({ message: "Treatment amount updated successfully" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to update treatment" });
+  }
+});
+
 
 // DELETE PATIENT
 app.delete("/patient/:id", auth, async (req, res) => {
