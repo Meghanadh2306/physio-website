@@ -249,6 +249,7 @@ body{
   <div class="stat"><h3 id="tCompleted">0</h3><p>Completed</p></div>
   <div class="stat"><h3 id="tAmount">₹0</h3><p>Total Amount</p></div>
   <div class="stat"><h3 id="tPaid">₹0</h3><p>Total Payments</p></div>
+  <div class="stat"><h3 id="tDailyPaid">₹0</h3><p>Today's Paid</p></div>
   <div class="stat"><h3 id="tDue">₹0</h3><p>Total Due</p></div>
 </div>
 <!-- DOCTOR REPORT BUTTON -->
@@ -322,12 +323,25 @@ async function loadPatients(){
 }
 
 function updateStats(){
-  let totalAmount=0, totalPaid=0, totalDue=0;
+  let totalAmount=0, totalPaid=0, dailyPaid=0, totalDue=0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   all.forEach(p=>{
     totalAmount+=Number(p.totalAmount||0);
     totalPaid+=Number(p.paidAmount||0);
     totalDue+=Number(p.dueAmount||0);
+    
+    // Calculate today's payments
+    if(p.paymentHistory){
+      p.paymentHistory.forEach(ph=>{
+        const paymentDate = new Date(ph.date);
+        paymentDate.setHours(0, 0, 0, 0);
+        if(paymentDate.getTime() === today.getTime() && ph.entryType === "Payment"){
+          dailyPaid += Number(ph.amount||0);
+        }
+      });
+    }
   });
 
   tTotal.innerText=all.length;
@@ -336,6 +350,7 @@ function updateStats(){
 
   tAmount.innerText="₹"+totalAmount.toLocaleString("en-IN");
   tPaid.innerText="₹"+totalPaid.toLocaleString("en-IN");
+  tDailyPaid.innerText="₹"+dailyPaid.toLocaleString("en-IN");
   tDue.innerText="₹"+totalDue.toLocaleString("en-IN");
 }
 async function loadDoctors(){
