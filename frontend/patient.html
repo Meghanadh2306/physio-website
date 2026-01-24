@@ -389,8 +389,8 @@ async function loadPatient(){
     });
   }
 
-  // Add from newly assigned treatments (if no history yet)
-  if(!p.treatmentHistory?.length && p.treatments && p.treatments.length > 0){
+  // Add from newly assigned treatments (from dashboard) - ALWAYS add these
+  if(p.treatments && p.treatments.length > 0){
     console.log("Adding treatments from patient.treatments:", p.treatments);
     p.treatments.forEach(treatmentId => {
       const treatment = treatmentData[treatmentId];
