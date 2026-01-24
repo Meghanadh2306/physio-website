@@ -309,7 +309,7 @@ async function generateReports(){
       if(p.paymentHistory){
         p.paymentHistory.forEach(payment => {
           const paymentDate = new Date(payment.date);
-          if(paymentDate.getDate() === dayKey && paymentDate.getMonth() === parseInt(monthVal) && paymentDate.getFullYear() === parseInt(yearVal)){
+          if(paymentDate.getDate() === dayKey && paymentDate.getMonth() === Number.parseInt(monthVal) && paymentDate.getFullYear() === Number.parseInt(yearVal)){
             dailyDetails[dayKey].paymentCount += 1;
           }
         });
@@ -326,7 +326,7 @@ async function generateReports(){
 
   // ✅ RENDER DAILY WISE REPORT TABLE
   const dailyReportBody = document.getElementById("dailyReportBody");
-  const sortedDays = Object.keys(dailyDetails).sort((a,b) => parseInt(a) - parseInt(b));
+  const sortedDays = Object.keys(dailyDetails).sort((a,b) => Number.parseInt(a) - Number.parseInt(b));
   
   if(sortedDays.length > 0){
     dailyReportBody.innerHTML = sortedDays.map(day => {
@@ -335,9 +335,9 @@ async function generateReports(){
         <tr>
           <td style="font-weight:600;color:var(--primary);">${data.date}</td>
           <td style="text-align:center;">${data.patients}</td>
-          <td style="text-align:center;class="daily-total">₹${data.totalAmount.toLocaleString('en-IN')}</td>
-          <td style="text-align:center;class="daily-paid">₹${data.paidAmount.toLocaleString('en-IN')}</td>
-          <td style="text-align:center;class="daily-due">₹${data.dueAmount.toLocaleString('en-IN')}</td>
+          <td style="text-align:center;" class="daily-total">₹${data.totalAmount.toLocaleString('en-IN')}</td>
+          <td style="text-align:center;" class="daily-paid">₹${data.paidAmount.toLocaleString('en-IN')}</td>
+          <td style="text-align:center;" class="daily-due">₹${data.dueAmount.toLocaleString('en-IN')}</td>
           <td style="text-align:center;">${data.paymentCount}</td>
         </tr>
       `;
