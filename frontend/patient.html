@@ -204,6 +204,21 @@ td{
   <!-- PAYMENT -->
   <div class="card section">
     <h2>💳 Add Payment</h2>
+    <div style="display:grid; gap:12px; margin-bottom:12px">
+      <div>
+        <label for="paymentType" style="font-weight:600">
+          💳 Payment Type <span style="color:var(--danger)">*</span>
+        </label>
+        <select id="paymentType" required style="width:100%; padding:12px; border-radius:10px; border:1px solid #cbd5e1; margin-top:8px; font-size:15px;">
+          <option value="">-- Select Payment Type --</option>
+          <option value="Cash">Cash</option>
+          <option value="Card">Card</option>
+          <option value="UPI">UPI</option>
+          <option value="Bank Transfer">Bank Transfer</option>
+          <option value="Cheque">Cheque</option>
+        </select>
+      </div>
+    </div>
     <input id="addPaid" type="number" min="1" step="1" placeholder="Enter payment amount" required>
     <textarea id="notes" rows="3" placeholder="Notes (optional)"></textarea>
     <button class="primary" onclick="savePayment()" id="savePaymentBtn">Save Payment</button>
@@ -372,6 +387,7 @@ if (!p.treatmentHistory?.length) {
       <div class="history-item" style="display:flex; justify-content:space-between; align-items:center;">
         <div>
           ${h.entryType} – ₹${h.amount}
+          ${h.paymentType ? `<br><small>💳 ${h.paymentType}</small>` : ''}
           <br><small>${new Date(h.date).toLocaleString()}</small>
         </div>
         <button class="danger" style="padding:8px 12px; font-size:13px;" onclick="deletePayment(${idx})">🗑 Delete</button>
@@ -381,9 +397,15 @@ if (!p.treatmentHistory?.length) {
 
 async function savePayment(){
   const amt = Number(document.getElementById("addPaid").value);
+  const paymentType = document.getElementById("paymentType").value;
   const notes = document.getElementById("notes").value;
 
   // ✅ FORM VALIDATION
+  if (!paymentType) {
+    alert("❌ Please select a payment type");
+    return;
+  }
+
   if (!amt || amt <= 0) {
     alert("❌ Please enter a valid payment amount");
     return;
@@ -402,7 +424,8 @@ async function savePayment(){
         Authorization:`Bearer ${token}`
       },
       body:JSON.stringify({ 
-        addPaid: amt, 
+        addPaid: amt,
+        paymentType: paymentType,
         notes
       })
     });
@@ -415,6 +438,7 @@ async function savePayment(){
 
     alert("✅ Payment saved successfully");
     document.getElementById("addPaid").value = "";
+    document.getElementById("paymentType").value = "";
     document.getElementById("notes").value = "";
     loadPatient();
   } catch (error) {

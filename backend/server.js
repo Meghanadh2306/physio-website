@@ -181,9 +181,13 @@ app.put("/patient/:id", auth, async (req, res) => {
   const p = await Patient.findById(req.params.id);
   if (!p) return res.status(404).json({ message: "Patient not found" });
 
-  const { addPaid = 0, notes } = req.body;
+  const { addPaid = 0, paymentType, notes } = req.body;
   
   if (addPaid > 0) {
+    if (!paymentType) {
+      return res.status(400).json({ message: "Payment type is required" });
+    }
+
     const visit = p.treatmentHistory.at(-1);
     if (!visit) {
       return res.status(400).json({ message: "No active visit found. Please add treatments first." });
@@ -202,6 +206,7 @@ app.put("/patient/:id", auth, async (req, res) => {
     p.paymentHistory.push({
       entryType: "Payment",
       amount: addPaid,
+      paymentType: paymentType,
       date: new Date()
     });
   }
