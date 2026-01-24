@@ -220,6 +220,35 @@ app.put("/patient/:id", auth, async (req, res) => {
   }
 });
 
+// UPDATE PATIENT DETAILS
+app.patch("/patient/:id", auth, async (req, res) => {
+  try {
+    const patient = await Patient.findById(req.params.id);
+    if (!patient) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    const { name, age, gender, phone, address, problem, recommendedDoctor, notes } = req.body;
+
+    // Update fields if provided
+    if (name) patient.name = name;
+    if (age) patient.age = age;
+    if (gender) patient.gender = gender;
+    if (phone) patient.phone = phone;
+    if (address) patient.address = address;
+    if (problem) patient.problem = problem;
+    if (recommendedDoctor) patient.recommendedDoctor = recommendedDoctor;
+    if (notes !== undefined) patient.notes = notes;
+
+    await patient.save();
+    res.json({ message: "Patient details updated successfully" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to update patient" });
+  }
+});
+
 // DELETE PAYMENT
 app.delete("/patient/:id/payment/:paymentIndex", auth, async (req, res) => {
   try {

@@ -195,7 +195,9 @@ body{
   font-weight:600;
 }
 .view-btn{background:var(--primary);color:white}
-.delete-btn{background:#dc2626;color:white;margin-left:8px}
+.edit-btn{background:#f59e0b;color:white;margin-left:6px}
+.edit-btn:hover{background:#d97706}
+.delete-btn{background:#dc2626;color:white;margin-left:6px}
 .delete-btn:hover{background:#b91c1c}
 .status{
   padding:5px 14px;
@@ -208,6 +210,79 @@ body{
 .treatment{
   background:#f97316; /* orange */
 }
+
+/* MODAL STYLES */
+.modal{
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,.5);
+  justify-content:center;
+  align-items:center;
+  z-index:1000;
+  overflow-y:auto;
+}
+.modal.active{display:flex}
+.modal-content{
+  background:white;
+  border-radius:16px;
+  padding:26px;
+  max-width:600px;
+  width:90%;
+  box-shadow:0 20px 60px rgba(0,0,0,.3);
+  margin:20px auto;
+}
+.modal-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+.modal-header h3{margin:0}
+.close-modal{
+  background:none;
+  border:none;
+  font-size:24px;
+  cursor:pointer;
+  padding:0;
+  color:#64748b;
+}
+.modal-body{
+  margin-bottom:20px;
+}
+.modal-body label{
+  font-weight:600;
+  display:block;
+  margin-bottom:8px;
+  color:#374151;
+}
+.modal-body input,.modal-body select,.modal-body textarea{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #cbd5e1;
+  margin-bottom:14px;
+  font-size:14px;
+}
+.modal-body textarea{resize:none;min-height:80px}
+.modal-footer{
+  display:flex;
+  gap:12px;
+  justify-content:flex-end;
+}
+.modal-footer button{
+  padding:10px 16px;
+  font-size:14px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:600;
+}
+.modal-footer .cancel-btn{background:#e5e7eb;color:#374151}
+.modal-footer .save-btn{background:var(--primary);color:white}
 
 </style>
 </head>
@@ -308,11 +383,59 @@ body{
 <div class="container">
   <div id="patientsContainer"></div>
 </div>
+
+<!-- EDIT PATIENT MODAL -->
+<div id="editPatientModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>✏️ Edit Patient Details</h3>
+      <button class="close-modal" onclick="closeEditPatientModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <label>Patient Name</label>
+      <input type="text" id="editName" placeholder="Patient name">
+      
+      <label>Age</label>
+      <input type="number" id="editAge" placeholder="Age" min="0">
+      
+      <label>Gender</label>
+      <select id="editGender">
+        <option value="">-- Select --</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Other">Other</option>
+      </select>
+      
+      <label>Phone</label>
+      <input type="tel" id="editPhone" placeholder="Phone number">
+      
+      <label>Address</label>
+      <textarea id="editAddress" placeholder="Address"></textarea>
+      
+      <label>Problem/Complaint</label>
+      <textarea id="editProblem" placeholder="Patient's problem or complaint"></textarea>
+      
+      <label>Recommended Doctor</label>
+      <select id="editDoctor">
+        <option value="">-- Select Doctor --</option>
+      </select>
+      
+      <label>Notes</label>
+      <textarea id="editNotes" placeholder="Additional notes"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="cancel-btn" onclick="closeEditPatientModal()">Cancel</button>
+      <button class="save-btn" onclick="saveEditedPatient()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const token=localStorage.getItem("token");
 if(!token) location.href="index.html";
 
 let all=[];
+let currentEditPatientId = null;
 
 async function loadPatients(){
   const res=await fetch(
@@ -379,6 +502,7 @@ function render(){
       </div>
       <div>
         <button class="view-btn" onclick="openPatient('${p._id}')">View</button>
+        <button class="edit-btn" onclick="openEditPatientModal('${p._id}')">✏️ Edit</button>
         <button class="delete-btn" onclick="deletePatientFromDashboard('${p._id}', '${p.name}')">🗑 Delete</button>
       </div>
     </div>
@@ -456,6 +580,101 @@ if(savedTheme === "dark"){
   document.getElementById("darkToggle").innerHTML =
     '<i class="fa-solid fa-sun"></i>';
 }
+
+// EDIT PATIENT FUNCTIONS
+async function openEditPatientModal(id){
+  currentEditPatientId = id;
+  
+  // Fetch patient data
+  try {
+    const res = await fetch(`${API}/patient/${id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const patient = await res.json();
+    
+    // Populate form fields
+    document.getElementById("editName").value = patient.name || "";
+    document.getElementById("editAge").value = patient.age || "";
+    document.getElementById("editGender").value = patient.gender || "";
+    document.getElementById("editPhone").value = patient.phone || "";
+    document.getElementById("editAddress").value = patient.address || "";
+    document.getElementById("editProblem").value = patient.problem || "";
+    document.getElementById("editDoctor").value = patient.recommendedDoctor || "";
+    document.getElementById("editNotes").value = patient.notes || "";
+    
+    // Open modal
+    document.getElementById("editPatientModal").classList.add("active");
+  } catch (error) {
+    console.error(error);
+    alert("❌ Error loading patient details");
+  }
+}
+
+function closeEditPatientModal(){
+  document.getElementById("editPatientModal").classList.remove("active");
+  currentEditPatientId = null;
+}
+
+async function saveEditedPatient(){
+  if(!currentEditPatientId){
+    alert("❌ Patient ID not found");
+    return;
+  }
+  
+  const name = document.getElementById("editName").value.trim();
+  const age = Number(document.getElementById("editAge").value) || 0;
+  const gender = document.getElementById("editGender").value;
+  const phone = document.getElementById("editPhone").value.trim();
+  const address = document.getElementById("editAddress").value.trim();
+  const problem = document.getElementById("editProblem").value.trim();
+  const recommendedDoctor = document.getElementById("editDoctor").value;
+  const notes = document.getElementById("editNotes").value.trim();
+  
+  // Validation
+  if(!name){
+    alert("❌ Patient name is required");
+    return;
+  }
+  
+  if(!phone){
+    alert("❌ Phone number is required");
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API}/patient/${currentEditPatientId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name,
+        age,
+        gender,
+        phone,
+        address,
+        problem,
+        recommendedDoctor,
+        notes
+      })
+    });
+    
+    if(!response.ok){
+      const error = await response.json();
+      alert(`❌ ${error.message || 'Failed to update patient'}`);
+      return;
+    }
+    
+    alert("✅ Patient details updated successfully");
+    closeEditPatientModal();
+    loadPatients();
+  } catch (error) {
+    console.error(error);
+    alert("❌ Error saving patient details");
+  }
+}
+
 loadPatients();
 function openChangePassword(){
   document.getElementById("changeModal").style.display="flex";
