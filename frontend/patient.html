@@ -235,14 +235,6 @@ td{
     <button class="primary" onclick="savePayment()" id="savePaymentBtn">Save Payment</button>
   </div>
 
-  <!-- ASSIGNED TREATMENTS -->
-  <div class="card section">
-    <h2>💊 Assigned Treatments</h2>
-    <div id="assignedTreatments" style="display:grid; gap:12px;">
-      <p style="color:#64748b; text-align:center;">Loading treatments...</p>
-    </div>
-  </div>
-
   <!-- TREATMENTS -->
   <div class="card section">
     <h2>🩺 Treatment Details</h2>
@@ -371,17 +363,6 @@ async function loadPatient(){
   totalEl.innerText = p.totalAmount || 0;
   paidEl.innerText = p.paidAmount || 0;
   dueEl.innerText  = (p.totalAmount || 0) - (p.paidAmount || 0);
-
-  // ✅ DISPLAY ASSIGNED TREATMENTS
-  const assignedTreatmentsDiv = document.getElementById("assignedTreatments");
-  if(p.treatments && p.treatments.length > 0){
-    assignedTreatmentsDiv.innerHTML = p.treatments.map(treatmentId => {
-      const treatment = treatmentData[treatmentId];
-      return `<div class="treatment-badge">💊 ${treatment ? treatment.name : 'Unknown Treatment'}</div>`;
-    }).join("");
-  } else {
-    assignedTreatmentsDiv.innerHTML = `<p style="color:#64748b; text-align:center;">No treatments assigned yet</p>`;
-  }
 
   table.innerHTML = "";
 
