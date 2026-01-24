@@ -309,46 +309,6 @@ patient.invoices.push({
   }
 });
 
-// UPDATE TREATMENT AMOUNT
-app.put("/patient/:id/treatment/:visitIndex", auth, async (req, res) => {
-  try {
-    const patient = await Patient.findById(req.params.id);
-    if (!patient) {
-      return res.status(404).json({ message: "Patient not found" });
-    }
-
-    const visitIndex = parseInt(req.params.visitIndex);
-    const { totalAmount } = req.body;
-
-    if (isNaN(visitIndex) || visitIndex < 0 || visitIndex >= patient.treatmentHistory.length) {
-      return res.status(400).json({ message: "Invalid visit index" });
-    }
-
-    if (!totalAmount || totalAmount <= 0) {
-      return res.status(400).json({ message: "Invalid amount" });
-    }
-
-    const visit = patient.treatmentHistory[visitIndex];
-    const oldAmount = visit.totalAmount || 0;
-    const difference = totalAmount - oldAmount;
-
-    // Update the visit amount
-    visit.totalAmount = totalAmount;
-
-    // Update patient totals
-    patient.totalAmount += difference;
-    patient.status = patient.paidAmount >= patient.totalAmount ? "Completed" : "Ongoing";
-
-    await patient.save();
-
-    res.json({ message: "Treatment amount updated successfully" });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to update treatment" });
-  }
-});
-
 
 // DELETE PATIENT
 app.delete("/patient/:id", auth, async (req, res) => {
@@ -422,18 +382,51 @@ app.delete("/patient/:id/invoice/:invoiceNumber", auth, async (req, res) => {
     }
 
     const beforeCount = patient.invoices.length;
+    
+    // Find invoice to get details
+    const invoiceToDelete = patient.invoices.find(inv => inv.invoiceNumber === invoiceNumber);
+    
+    if (!invoiceToDelete) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
 
+    // Remove invoice
     patient.invoices = patient.invoices.filter(
       inv => inv.invoiceNumber !== invoiceNumber
     );
 
-    if (patient.invoices.length === beforeCount) {
-      return res.status(404).json({ message: "Invoice not found" });
+    // Delete related payments for this invoice based on dates
+    if (patient.paymentHistory && patient.paymentHistory.length > 0) {
+      const invoiceStartDate = new Date(invoiceToDelete.treatmentStartDate);
+      const invoiceEndDate = new Date(invoiceToDelete.treatmentEndDate);
+      
+      let deletedPaymentAmount = 0;
+      
+      // Filter out payments that fall within this invoice's treatment period
+      const originalPayments = patient.paymentHistory;
+      patient.paymentHistory = patient.paymentHistory.filter(payment => {
+        const paymentDate = new Date(payment.date);
+        
+        // If payment is within the invoice period and is a Payment entry, mark for deletion
+        if (paymentDate >= invoiceStartDate && paymentDate <= invoiceEndDate && payment.entryType === "Payment") {
+          deletedPaymentAmount += payment.amount || 0;
+          return false; // Remove this payment
+        }
+        return true; // Keep this payment
+      });
+      
+      // Adjust totals if payments were deleted
+      if (deletedPaymentAmount > 0) {
+        patient.paidAmount -= deletedPaymentAmount;
+      }
     }
+
+    // Recalculate status
+    patient.status = patient.paidAmount >= patient.totalAmount ? "Completed" : "Ongoing";
 
     await patient.save();
 
-    res.json({ message: "Invoice deleted successfully" });
+    res.json({ message: "Invoice and related payments deleted successfully" });
 
   } catch (err) {
     console.error(err);
