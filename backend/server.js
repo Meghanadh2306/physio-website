@@ -214,6 +214,39 @@ app.put("/patient/:id", auth, async (req, res) => {
     res.status(500).json({ message: "Update failed" });
   }
 });
+
+// DELETE PAYMENT
+app.delete("/patient/:id/payment/:paymentIndex", auth, async (req, res) => {
+  try {
+    const p = await Patient.findById(req.params.id);
+    if (!p) return res.status(404).json({ message: "Patient not found" });
+
+    const paymentIndex = parseInt(req.params.paymentIndex);
+    if (paymentIndex < 0 || paymentIndex >= p.paymentHistory.length) {
+      return res.status(400).json({ message: "Invalid payment index" });
+    }
+
+    const removedPayment = p.paymentHistory[paymentIndex];
+    if (removedPayment.entryType === "Payment") {
+      p.paidAmount -= removedPayment.amount;
+      
+      const visit = p.treatmentHistory.at(-1);
+      if (visit) {
+        visit.paidAmount -= removedPayment.amount;
+      }
+    }
+
+    p.paymentHistory.splice(paymentIndex, 1);
+    p.status = p.paidAmount >= p.totalAmount ? "Completed" : "Ongoing";
+    await p.save();
+    
+    res.json({ message: "Payment deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to delete payment" });
+  }
+});
+
 app.post("/patient/:id/treatments/add", auth, async (req, res) => {
   try {
     const patient = await Patient.findById(req.params.id);
