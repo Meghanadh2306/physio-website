@@ -443,12 +443,6 @@ app.delete("/patient/:id/invoice/:invoiceNumber", auth, async (req, res) => {
   }
 });
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to delete invoice" });
-  }
-});
-
 //* ================= TREATMENT MASTER ================= */
 app.get("/treatments", auth, async (req, res) => {
   res.json(await Treatment.find().sort({ name: 1 }));
