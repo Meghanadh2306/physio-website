@@ -398,10 +398,104 @@ body.dark .modal-footer{
   background:#d1d5db;
 }
 
-.modal-footer .save-btn{
-  background:linear-gradient(135deg, var(--primary), var(--secondary));
+.treatment-list{
+  background:#f0fdf9;
+  border:2px solid #ccf0ee;
+  border-radius:12px;
+  padding:14px;
+  margin-bottom:16px;
+}
+
+body.dark .treatment-list{
+  background:#064e3b;
+  border:2px solid #0f766e;
+}
+
+.treatment-item{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:10px 12px;
+  background:white;
+  border-radius:8px;
+  margin-bottom:8px;
+  gap:12px;
+}
+
+body.dark .treatment-item{
+  background:#111827;
+}
+
+.treatment-item:last-child{
+  margin-bottom:0;
+}
+
+.treatment-item-info{
+  flex:1;
+}
+
+.treatment-item-name{
+  font-weight:700;
+  color:var(--primary);
+}
+
+.treatment-item-date{
+  font-size:12px;
+  color:#64748b;
+  margin-top:4px;
+}
+
+body.dark .treatment-item-date{
+  color:#9ca3af;
+}
+
+.remove-treatment-btn{
+  background:#dc2626;
   color:white;
-  box-shadow:0 6px 16px rgba(15,118,110,.25);
+  border:none;
+  padding:6px 10px;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:12px;
+  font-weight:600;
+  transition:all 0.3s;
+}
+
+.remove-treatment-btn:hover{
+  background:#b91c1c;
+  transform:scale(1.05);
+}
+
+.add-treatment-row{
+  display:flex;
+  gap:12px;
+  align-items:flex-end;
+  margin-top:12px;
+}
+
+.add-treatment-row select{
+  flex:1;
+  padding:10px 12px;
+  border-radius:8px;
+  border:2px solid #cbd5e1;
+  font-size:14px;
+}
+
+.add-treatment-row button{
+  padding:10px 16px;
+  background:var(--secondary);
+  color:white;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:600;
+  white-space:nowrap;
+  transition:all 0.3s;
+}
+
+.add-treatment-row button:hover{
+  background:var(--primary);
+  transform:translateY(-2px);
 }
 
 </style>
@@ -562,11 +656,27 @@ body.dark .modal-footer{
             <option value="">-- Select Doctor --</option>
           </select>
         </div>
-        <div class="form-group">
-          <label><i class="fa-solid fa-pills"></i> Treatment *</label>
-          <select id="editTreatment">
+      </div>
+      
+      <!-- Treatment History Section -->
+      <div class="section-divider"><i class="fa-solid fa-history"></i> Treatment History</div>
+      
+      <div class="form-group form-row full">
+        <label><i class="fa-solid fa-list"></i> Treatments for this Patient</label>
+        <div class="treatment-list" id="treatmentListContainer">
+          <p style="color:#999;text-align:center;margin:0;">No treatments added yet</p>
+        </div>
+      </div>
+
+      <div class="form-group form-row full">
+        <label><i class="fa-solid fa-plus-circle"></i> Add New Treatment</label>
+        <div class="add-treatment-row">
+          <select id="newTreatmentSelect">
             <option value="">-- Select Treatment --</option>
           </select>
+          <button type="button" onclick="addTreatmentToList()">
+            <i class="fa-solid fa-plus"></i> Add Treatment
+          </button>
         </div>
       </div>
       
@@ -735,23 +845,83 @@ if(savedTheme === "dark"){
 }
 
 // EDIT PATIENT FUNCTIONS
+let treatmentOptions = [];
+let patientTreatmentsList = [];
+
 async function loadTreatments(){
   try {
     const res = await fetch(`${API}/treatments`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    const treatments = await res.json();
+    treatmentOptions = await res.json();
     
-    const treatmentSelect = document.getElementById("editTreatment");
+    const treatmentSelect = document.getElementById("newTreatmentSelect");
     treatmentSelect.innerHTML = `<option value="">-- Select Treatment --</option>` +
-      treatments.map(t => `<option value="${t._id}">${t.name}</option>`).join("");
+      treatmentOptions.map(t => `<option value="${t._id}">${t.name}</option>`).join("");
   } catch (error) {
     console.error("Error loading treatments:", error);
   }
 }
 
+function displayTreatments(){
+  const container = document.getElementById("treatmentListContainer");
+  
+  if(patientTreatmentsList.length === 0){
+    container.innerHTML = `<p style="color:#999;text-align:center;margin:0;">No treatments added yet</p>`;
+    return;
+  }
+  
+  container.innerHTML = patientTreatmentsList.map((treatment, index) => {
+    const treatmentName = treatmentOptions.find(t => t._id === treatment.id)?.name || "Unknown";
+    const formattedDate = new Date(treatment.date).toLocaleDateString("en-IN");
+    
+    return `
+      <div class="treatment-item">
+        <div class="treatment-item-info">
+          <div class="treatment-item-name">${treatmentName}</div>
+          <div class="treatment-item-date">Added on: ${formattedDate}</div>
+        </div>
+        <button class="remove-treatment-btn" onclick="removeTreatmentFromList(${index})">
+          <i class="fa-solid fa-trash"></i> Remove
+        </button>
+      </div>
+    `;
+  }).join("");
+}
+
+function addTreatmentToList(){
+  const treatmentId = document.getElementById("newTreatmentSelect").value;
+  
+  if(!treatmentId){
+    alert("❌ Please select a treatment");
+    return;
+  }
+  
+  // Check if treatment already exists
+  if(patientTreatmentsList.some(t => t.id === treatmentId)){
+    alert("⚠️ This treatment is already added");
+    return;
+  }
+  
+  patientTreatmentsList.push({
+    id: treatmentId,
+    date: new Date()
+  });
+  
+  document.getElementById("newTreatmentSelect").value = "";
+  displayTreatments();
+}
+
+function removeTreatmentFromList(index){
+  if(confirm("Are you sure you want to remove this treatment?")){
+    patientTreatmentsList.splice(index, 1);
+    displayTreatments();
+  }
+}
+
 async function openEditPatientModal(id){
   currentEditPatientId = id;
+  patientTreatmentsList = [];
   await loadTreatments();
   
   // Fetch patient data
@@ -770,7 +940,17 @@ async function openEditPatientModal(id){
     document.getElementById("editProblem").value = patient.problem || "";
     document.getElementById("editDoctor").value = patient.recommendedDoctor || "";
     document.getElementById("editNotes").value = patient.notes || "";
-    document.getElementById("editTreatment").value = patient.treatment || "";
+    
+    // Load treatments from patient data
+    if(patient.treatments && Array.isArray(patient.treatments)){
+      patientTreatmentsList = patient.treatments.map(treatmentId => ({
+        id: treatmentId,
+        date: new Date()
+      }));
+    }
+    
+    displayTreatments();
+    document.getElementById("newTreatmentSelect").value = "";
     
     // Open modal
     document.getElementById("editPatientModal").classList.add("active");
@@ -783,6 +963,7 @@ async function openEditPatientModal(id){
 function closeEditPatientModal(){
   document.getElementById("editPatientModal").classList.remove("active");
   currentEditPatientId = null;
+  patientTreatmentsList = [];
 }
 
 async function saveEditedPatient(){
@@ -799,7 +980,7 @@ async function saveEditedPatient(){
   const problem = document.getElementById("editProblem").value.trim();
   const recommendedDoctor = document.getElementById("editDoctor").value;
   const notes = document.getElementById("editNotes").value.trim();
-  const treatment = document.getElementById("editTreatment").value;
+  const treatments = patientTreatmentsList.map(t => t.id);
   
   // Validation
   if(!name){
@@ -812,8 +993,8 @@ async function saveEditedPatient(){
     return;
   }
   
-  if(!treatment){
-    alert("❌ Treatment is required");
+  if(treatments.length === 0){
+    alert("❌ Please add at least one treatment");
     return;
   }
   
@@ -833,7 +1014,7 @@ async function saveEditedPatient(){
         problem,
         recommendedDoctor,
         notes,
-        treatment
+        treatments
       })
     });
     
