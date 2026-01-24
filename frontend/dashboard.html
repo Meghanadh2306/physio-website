@@ -252,16 +252,6 @@ body{
   <div class="stat"><h3 id="tDailyPaid">₹0</h3><p>Today's Paid</p></div>
   <div class="stat"><h3 id="tDue">₹0</h3><p>Total Due</p></div>
 </div>
-
-<!-- TREATMENT & PAYMENT STATUS -->
-<div class="stats" style="margin-top:0">
-  <div class="stat"><h3 id="treatmentDone">0</h3><p>✅ Treatment Done</p></div>
-  <div class="stat"><h3 id="paymentDone">0</h3><p>💳 Payment Done</p></div>
-  <div class="stat"><h3 id="treatmentPending">0</h3><p>⏳ Treatment Pending</p></div>
-  <div class="stat"><h3 id="paymentPending">0</h3><p>⏳ Payment Pending</p></div>
-  <div class="stat"><h3 id="treatmentDonePaymentPending">0</h3><p>✅ Treatment Done | 💳 Payment Pending</p></div>
-  <div class="stat"><h3 id="paymentDonetreatmentPending">0</h3><p>💳 Payment Done | ⏳ Treatment Pending</p></div>
-</div>
 <!-- DOCTOR REPORT BUTTON -->
 <!-- DOCTOR REPORT BUTTON -->
 <div style="
@@ -334,9 +324,6 @@ async function loadPatients(){
 
 function updateStats(){
   let totalAmount=0, totalPaid=0, dailyPaid=0, totalDue=0;
-  let treatmentDone=0, paymentDone=0, treatmentPending=0, paymentPending=0;
-  let treatmentDonePaymentPending=0, paymentDonetreatmentPending=0;
-  
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -355,19 +342,6 @@ function updateStats(){
         }
       });
     }
-    
-    // Check treatment completion
-    const isTreatmentDone = p.treatmentHistory?.length > 0 && 
-                            p.treatmentHistory.some(th => new Date(th.endDate) <= new Date());
-    const isPaymentDone = p.paidAmount >= p.totalAmount;
-    
-    if(isTreatmentDone) treatmentDone++;
-    if(isPaymentDone) paymentDone++;
-    if(!isTreatmentDone) treatmentPending++;
-    if(!isPaymentDone) paymentPending++;
-    
-    if(isTreatmentDone && !isPaymentDone) treatmentDonePaymentPending++;
-    if(isPaymentDone && !isTreatmentDone) paymentDonetreatmentPending++;
   });
 
   tTotal.innerText=all.length;
@@ -378,13 +352,6 @@ function updateStats(){
   tPaid.innerText="₹"+totalPaid.toLocaleString("en-IN");
   tDailyPaid.innerText="₹"+dailyPaid.toLocaleString("en-IN");
   tDue.innerText="₹"+totalDue.toLocaleString("en-IN");
-  
-  document.getElementById("treatmentDone").innerText=treatmentDone;
-  document.getElementById("paymentDone").innerText=paymentDone;
-  document.getElementById("treatmentPending").innerText=treatmentPending;
-  document.getElementById("paymentPending").innerText=paymentPending;
-  document.getElementById("treatmentDonePaymentPending").innerText=treatmentDonePaymentPending;
-  document.getElementById("paymentDonetreatmentPending").innerText=paymentDonetreatmentPending;
 }
 async function loadDoctors(){
   const res = await fetch(`${API}/doctors`,{
