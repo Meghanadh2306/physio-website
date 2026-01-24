@@ -152,6 +152,17 @@ td{
   font-size:14px;
 }
 
+.treatment-badge{
+  display:inline-block;
+  background:linear-gradient(135deg, #06b6d4, #0891b2);
+  color:white;
+  padding:10px 16px;
+  border-radius:10px;
+  font-weight:600;
+  margin:8px 8px 8px 0;
+  font-size:14px;
+}
+
 .actions{
   display:flex;
   gap:12px;
@@ -222,6 +233,14 @@ td{
     <input id="addPaid" type="number" min="1" step="1" placeholder="Enter payment amount" required>
     <textarea id="notes" rows="3" placeholder="Notes (optional)"></textarea>
     <button class="primary" onclick="savePayment()" id="savePaymentBtn">Save Payment</button>
+  </div>
+
+  <!-- ASSIGNED TREATMENTS -->
+  <div class="card section">
+    <h2>💊 Assigned Treatments</h2>
+    <div id="assignedTreatments" style="display:grid; gap:12px;">
+      <p style="color:#64748b; text-align:center;">Loading treatments...</p>
+    </div>
   </div>
 
   <!-- TREATMENTS -->
@@ -310,6 +329,7 @@ const historyDiv = document.getElementById("history");
 const table = document.getElementById("treatmentTable");
 
 let treatmentPrices = {};
+let treatmentData = {};
 
 async function loadTreatmentMaster(){
   const res = await fetch(`${API}/treatments`,{
@@ -317,7 +337,11 @@ async function loadTreatmentMaster(){
   });
   const data = await res.json();
   treatmentPrices = {};
-  data.forEach(t => treatmentPrices[t.name] = t.pricePerDay);
+  treatmentData = {};
+  data.forEach(t => {
+    treatmentPrices[t.name] = t.pricePerDay;
+    treatmentData[t._id] = t;
+  });
 }
 
 function recalc(){
@@ -347,6 +371,17 @@ async function loadPatient(){
   totalEl.innerText = p.totalAmount || 0;
   paidEl.innerText = p.paidAmount || 0;
   dueEl.innerText  = (p.totalAmount || 0) - (p.paidAmount || 0);
+
+  // ✅ DISPLAY ASSIGNED TREATMENTS
+  const assignedTreatmentsDiv = document.getElementById("assignedTreatments");
+  if(p.treatments && p.treatments.length > 0){
+    assignedTreatmentsDiv.innerHTML = p.treatments.map(treatmentId => {
+      const treatment = treatmentData[treatmentId];
+      return `<div class="treatment-badge">💊 ${treatment ? treatment.name : 'Unknown Treatment'}</div>`;
+    }).join("");
+  } else {
+    assignedTreatmentsDiv.innerHTML = `<p style="color:#64748b; text-align:center;">No treatments assigned yet</p>`;
+  }
 
   table.innerHTML = "";
 
