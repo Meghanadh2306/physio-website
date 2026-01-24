@@ -350,11 +350,14 @@ function recalc(){
 
 async function loadPatient(){
   await loadTreatmentMaster();
+  console.log("Treatment Data loaded:", treatmentData);
+  console.log("Treatment Prices loaded:", treatmentPrices);
 
   const res = await fetch(`${API}/patient/${id}`,{
     headers:{ Authorization:`Bearer ${token}` }
   });
   const p = await res.json();
+  console.log("Patient data:", p);
   
   pname.innerText = p.name;
   pphone.innerText = p.phone;
@@ -388,8 +391,11 @@ async function loadPatient(){
 
   // Add from newly assigned treatments (if no history yet)
   if(!p.treatmentHistory?.length && p.treatments && p.treatments.length > 0){
+    console.log("Adding treatments from patient.treatments:", p.treatments);
     p.treatments.forEach(treatmentId => {
       const treatment = treatmentData[treatmentId];
+      console.log("Looking for treatment:", treatmentId, "Found:", treatment);
+      
       if(treatment){
         // Check if this treatment is already added to avoid duplicates
         const isDuplicate = allTreatmentsToDisplay.some(t => t.name === treatment.name);
@@ -402,9 +408,13 @@ async function loadPatient(){
             isFromHistory: false
           });
         }
+      } else {
+        console.warn("Treatment not found for ID:", treatmentId, "Available IDs:", Object.keys(treatmentData));
       }
     });
   }
+
+  console.log("All treatments to display:", allTreatmentsToDisplay);
 
   // Render treatments
   if(allTreatmentsToDisplay.length > 0){
@@ -421,6 +431,7 @@ async function loadPatient(){
   }
   // ✅ FALLBACK - SHOW ALL TREATMENTS FROM MASTER IF NO HISTORY AND NO ASSIGNED TREATMENTS
   else {
+    console.log("Using fallback - showing all master treatments");
     Object.keys(treatmentPrices).forEach(name => {
       const price = treatmentPrices[name];
 
