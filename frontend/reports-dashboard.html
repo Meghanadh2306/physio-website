@@ -107,6 +107,44 @@ body{
 
 canvas{max-height:320px}
 
+/* DAILY REPORT TABLE STYLES */
+#dailyReportTable tbody tr{
+  border-bottom:1px solid #e5e7eb;
+  transition:all 0.2s;
+}
+
+#dailyReportTable tbody tr:hover{
+  background:#f0fdf9;
+}
+
+#dailyReportTable td{
+  padding:12px;
+  border:1px solid #e5e7eb;
+  font-size:14px;
+}
+
+#dailyReportTable thead th{
+  font-weight:700;
+  font-size:13px;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+}
+
+.daily-total{
+  font-weight:700;
+  color:var(--primary);
+}
+
+.daily-paid{
+  color:#16a34a;
+  font-weight:600;
+}
+
+.daily-due{
+  color:#dc2626;
+  font-weight:600;
+}
+
 @media print{
   .header,.filter,.actions{display:none}
 }
@@ -155,6 +193,28 @@ canvas{max-height:320px}
 
   <div class="card">
     <canvas id="monthlyChart"></canvas>
+  </div>
+
+  <!-- DAILY WISE GROUP REPORT -->
+  <div class="card">
+    <h3>📊 Daily Wise Group Report for Month</h3>
+    <div id="dailyReportContainer" style="overflow-x:auto;">
+      <table id="dailyReportTable" style="width:100%;border-collapse:collapse;margin-top:15px;">
+        <thead>
+          <tr style="background:linear-gradient(135deg,var(--primary),var(--secondary));color:white;">
+            <th style="padding:12px;text-align:left;border:1px solid #ddd;">Date</th>
+            <th style="padding:12px;text-align:center;border:1px solid #ddd;">Patients Treated</th>
+            <th style="padding:12px;text-align:center;border:1px solid #ddd;">Total Amount (₹)</th>
+            <th style="padding:12px;text-align:center;border:1px solid #ddd;">Paid Amount (₹)</th>
+            <th style="padding:12px;text-align:center;border:1px solid #ddd;">Due Amount (₹)</th>
+            <th style="padding:12px;text-align:center;border:1px solid #ddd;">Payment Count</th>
+          </tr>
+        </thead>
+        <tbody id="dailyReportBody">
+          <tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">Generate report to see daily data</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- YEARLY -->
@@ -206,6 +266,7 @@ async function generateReports(){
   let mTotal=0,mPaid=0,mDue=0,mCount=0;
   let yTotal=0,yPaid=0,yDue=0,yCount=0;
   let daily={}, yearly={};
+  let dailyDetails = {}; // Store detailed data for each day
 
   patients.forEach(p=>{
     const d=new Date(p.appointmentDate || p.createdAt);
@@ -225,6 +286,34 @@ async function generateReports(){
       if(due>0) mDue+=due;
       mCount++;
       daily[d.getDate()]=(daily[d.getDate()]||0)+(p.paidAmount||0);
+
+      // ✅ STORE DAILY DETAILS
+      const dayKey = d.getDate();
+      if(!dailyDetails[dayKey]){
+        dailyDetails[dayKey] = {
+          date: d.toLocaleDateString('en-IN'),
+          patients: 0,
+          totalAmount: 0,
+          paidAmount: 0,
+          dueAmount: 0,
+          paymentCount: 0
+        };
+      }
+      
+      dailyDetails[dayKey].patients += 1;
+      dailyDetails[dayKey].totalAmount += p.totalAmount || 0;
+      dailyDetails[dayKey].paidAmount += p.paidAmount || 0;
+      dailyDetails[dayKey].dueAmount += due;
+      
+      // Count payments for this patient
+      if(p.paymentHistory){
+        p.paymentHistory.forEach(payment => {
+          const paymentDate = new Date(payment.date);
+          if(paymentDate.getDate() === dayKey && paymentDate.getMonth() === parseInt(monthVal) && paymentDate.getFullYear() === parseInt(yearVal)){
+            dailyDetails[dayKey].paymentCount += 1;
+          }
+        });
+      }
     }
   });
 
@@ -234,6 +323,28 @@ async function generateReports(){
     <div class="stat"><h3>₹${mPaid}</h3><p>Collected</p></div>
     <div class="stat"><h3>₹${mDue}</h3><p>Due</p></div>
   `;
+
+  // ✅ RENDER DAILY WISE REPORT TABLE
+  const dailyReportBody = document.getElementById("dailyReportBody");
+  const sortedDays = Object.keys(dailyDetails).sort((a,b) => parseInt(a) - parseInt(b));
+  
+  if(sortedDays.length > 0){
+    dailyReportBody.innerHTML = sortedDays.map(day => {
+      const data = dailyDetails[day];
+      return `
+        <tr>
+          <td style="font-weight:600;color:var(--primary);">${data.date}</td>
+          <td style="text-align:center;">${data.patients}</td>
+          <td style="text-align:center;class="daily-total">₹${data.totalAmount.toLocaleString('en-IN')}</td>
+          <td style="text-align:center;class="daily-paid">₹${data.paidAmount.toLocaleString('en-IN')}</td>
+          <td style="text-align:center;class="daily-due">₹${data.dueAmount.toLocaleString('en-IN')}</td>
+          <td style="text-align:center;">${data.paymentCount}</td>
+        </tr>
+      `;
+    }).join("");
+  } else {
+    dailyReportBody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">No data for this month</td></tr>`;
+  }
 
   yearlyStats.innerHTML=`
     <div class="stat"><h3>${yCount}</h3><p>Patients</p></div>
