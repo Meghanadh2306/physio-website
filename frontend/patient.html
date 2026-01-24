@@ -453,6 +453,18 @@ async function loadPatient(){
       `;
     });
   }
+
+  recalc();
+
+  historyDiv.innerHTML = "";
+  p.paymentHistory?.forEach((h, idx)=>{
+    historyDiv.innerHTML += `
+      <div class="history-item" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          ${h.entryType} – ₹${h.amount}
+          ${h.paymentType ? `<br><small>💳 ${h.paymentType}</small>` : ''}
+          <br><small>${new Date(h.date).toLocaleString()}</small>
+        </div>
         <button class="danger" style="padding:8px 12px; font-size:13px;" onclick="deletePayment(${idx})">🗑 Delete</button>
       </div>`;
   });
