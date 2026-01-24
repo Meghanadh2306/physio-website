@@ -369,21 +369,26 @@ async function loadPatient(){
 
   table.innerHTML = "";
 
-  // ✅ COLLECT ALL TREATMENTS (OLD + NEW)
+  // ✅ COLLECT ALL TREATMENTS (OLD + NEW) - NO DUPLICATES
   let allTreatmentsToDisplay = [];
+  let treatmentNamesAdded = new Set(); // Track unique treatment names
 
   // Add from treatment history (previous visits)
   if(p.treatmentHistory?.length){
     p.treatmentHistory.forEach(history => {
       if(history.treatments){
         history.treatments.forEach(t => {
-          allTreatmentsToDisplay.push({
-            name: t.treatmentName,
-            price: t.pricePerDay,
-            days: t.days,
-            total: t.totalAmount,
-            isFromHistory: true
-          });
+          const baseName = t.treatmentName.replace(/\s*\(Previous\)\s*/g, '').trim();
+          if(!treatmentNamesAdded.has(baseName)){
+            treatmentNamesAdded.add(baseName);
+            allTreatmentsToDisplay.push({
+              name: t.treatmentName,
+              price: t.pricePerDay,
+              days: t.days,
+              total: t.totalAmount,
+              isFromHistory: true
+            });
+          }
         });
       }
     });
@@ -398,8 +403,8 @@ async function loadPatient(){
       
       if(treatment){
         // Check if this treatment is already added to avoid duplicates
-        const isDuplicate = allTreatmentsToDisplay.some(t => t.name === treatment.name);
-        if(!isDuplicate){
+        if(!treatmentNamesAdded.has(treatment.name)){
+          treatmentNamesAdded.add(treatment.name);
           allTreatmentsToDisplay.push({
             name: treatment.name,
             price: treatment.pricePerDay || 0,
