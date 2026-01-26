@@ -9,6 +9,49 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
+body {
+  background: linear-gradient(120deg, #e0f7fa 60%, #f0fdfa 100%) no-repeat fixed;
+}
+.hospital-title {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.hospital-header {
+  background: linear-gradient(135deg, #0f766e 80%, #14b8a6 100%);
+  color: #fff;
+  padding: 28px 32px 18px 32px;
+  border-radius: 0 0 24px 24px;
+  box-shadow: 0 8px 32px rgba(20,184,166,0.10);
+  margin-bottom: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.hospital-header .nav-btn {
+  background: #fff;
+  color: var(--primary);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(20,184,166,0.08);
+  transition: background 0.2s, color 0.2s;
+}
+.hospital-header .nav-btn:hover {
+  background: var(--primary);
+  color: #fff;
+}
+.payment-status-card {
+  margin-top: 0;
+}
 :root{
   --primary:#0f766e;
   --secondary:#14b8a6;
@@ -153,9 +196,9 @@ canvas{max-height:320px}
 
 <body>
 
-<div class="header">
-  <h2><i class="fa-solid fa-chart-pie"></i> Payment & Dues Reports</h2>
-  <button onclick="goBack()">⬅ Dashboard</button>
+<div class="hospital-header">
+  <span class="hospital-title"><i class="fa-solid fa-hospital"></i> Sri Physiotherapy Clinic Reports</span>
+  <button class="nav-btn" onclick="goBack()"><i class="fa-solid fa-arrow-left"></i> Dashboard</button>
 </div>
 
 <div class="container">
@@ -239,27 +282,7 @@ canvas{max-height:320px}
 
   <!-- FILTER -->
   <div class="card">
-    <div class="filter">
-      <select id="month">
-        <option value="">Select Month</option>
-        <option value="0">January</option>
-        <option value="1">February</option>
-        <option value="2">March</option>
-        <option value="3">April</option>
-        <option value="4">May</option>
-        <option value="5">June</option>
-        <option value="6">July</option>
-        <option value="7">August</option>
-        <option value="8">September</option>
-        <option value="9">October</option>
-        <option value="10">November</option>
-        <option value="11">December</option>
-      </select>
-
-      <select id="year"></select>
-
-      <button onclick="generateReports()">Generate Report</button>
-    </div>
+    <!-- Filter removed for auto graph -->
   </div>
 
   <!-- MONTHLY -->
@@ -343,6 +366,29 @@ async function loadPaymentStatus() {
   document.getElementById("psTotalDue").innerText = "₹" + totalDue.toLocaleString("en-IN");
 }
 loadPaymentStatus();
+
+// AUTO-SELECT CURRENT MONTH AND YEAR, SHOW GRAPH
+window.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  // Set month and year dropdowns if present
+  const monthSelect = document.getElementById('month');
+  const yearSelect = document.getElementById('year');
+  if(monthSelect && yearSelect) {
+    monthSelect.value = String(month);
+    let found = false;
+    for(let i=0; i<yearSelect.options.length; i++) {
+      if(yearSelect.options[i].value == year) {
+        yearSelect.selectedIndex = i;
+        found = true;
+        break;
+      }
+    }
+    if(!found) yearSelect.selectedIndex = 0;
+    generateReports();
+  }
+});
 const token=localStorage.getItem("token");
 if(!token) location.href="index.html";
 
