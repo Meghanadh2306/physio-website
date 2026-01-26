@@ -152,6 +152,12 @@ canvas{max-height:320px}
 </head>
 
 <body>
+<div>
+  <div class="stat"><h3 id="tAmount">₹0</h3><p>Total Amount</p></div>
+  <div class="stat"><h3 id="tPaid">₹0</h3><p>Total Payments</p></div>
+  <div class="stat"><h3 id="tDailyPaid">₹0</h3><p>Today's Paid</p></div>
+  <div class="stat"><h3 id="tDue">₹0</h3><p>Total Due</p></div>
+</div>
 
 <div class="header">
   <h2><i class="fa-solid fa-chart-pie"></i> Payment & Dues Reports</h2>
@@ -316,6 +322,38 @@ async function generateReports(){
       }
     }
   });
+  
+function updateStats(){
+  let totalAmount=0, totalPaid=0, dailyPaid=0, totalDue=0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  all.forEach(p=>{
+    totalAmount+=Number(p.totalAmount||0);
+    totalPaid+=Number(p.paidAmount||0);
+    totalDue+=Number(p.dueAmount||0);
+    
+    // Calculate today's payments
+    if(p.paymentHistory){
+      p.paymentHistory.forEach(ph=>{
+        const paymentDate = new Date(ph.date);
+        paymentDate.setHours(0, 0, 0, 0);
+        if(paymentDate.getTime() === today.getTime() && ph.entryType === "Payment"){
+          dailyPaid += Number(ph.amount||0);
+        }
+      });
+    }
+  });
+
+  tTotal.innerText=all.length;
+  tOngoing.innerText=all.filter(p=>p.status==="Ongoing").length;
+  tCompleted.innerText=all.filter(p=>p.status==="Completed").length;
+
+  tAmount.innerText="₹"+totalAmount.toLocaleString("en-IN");
+  tPaid.innerText="₹"+totalPaid.toLocaleString("en-IN");
+  tDailyPaid.innerText="₹"+dailyPaid.toLocaleString("en-IN");
+  tDue.innerText="₹"+totalDue.toLocaleString("en-IN");
+}
 
   monthlyStats.innerHTML=`
     <div class="stat"><h3>${mCount}</h3><p>Patients</p></div>
