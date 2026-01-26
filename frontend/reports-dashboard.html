@@ -7,6 +7,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+/* Duplicate body selector removed (see above for main body CSS) */
 
 <style>
 body {
@@ -61,15 +62,7 @@ body {
 }
 *{box-sizing:border-box}
 
-body{
-  margin:0;
-  font-family:"Segoe UI", Arial, sans-serif;
-  background:
-    linear-gradient(rgba(230,242,241,.95),rgba(230,242,241,.95)),
-    url("https://images.unsplash.com/photo-1586773860418-d37222d8fce3");
-  background-size:cover;
-  color:var(--text);
-}
+/* Duplicate body selector removed (see above for main body CSS) */
 
 /* HEADER */
 .header{
@@ -216,12 +209,32 @@ canvas{max-height:320px}
   <!-- MONTHLY -->
   <div class="card">
     <h3 style="display:flex;align-items:center;gap:10px;color:var(--primary)"><i class="fa-solid fa-calendar-days"></i> Monthly Summary</h3>
+    <div class="filter" style="margin-bottom:18px;">
+      <select id="month">
+        <option value="0">January</option>
+        <option value="1">February</option>
+        <option value="2">March</option>
+        <option value="3">April</option>
+        <option value="4">May</option>
+        <option value="5">June</option>
+        <option value="6">July</option>
+        <option value="7">August</option>
+        <option value="8">September</option>
+        <option value="9">October</option>
+        <option value="10">November</option>
+        <option value="11">December</option>
+      </select>
+      <select id="year"></select>
+      <button onclick="generateReports()">Show Report</button>
+    </div>
     <div id="monthlyStats" class="stats"></div>
     <div id="monthlyChartEmpty" style="text-align:center;color:#888;padding:40px 0;display:none;">No monthly data available for this period.</div>
   </div>
 
   <div class="card">
     <canvas id="monthlyChart"></canvas>
+    <canvas id="dateIncomeChart" style="margin-top:32px;"></canvas>
+    <div id="dateIncomeTableContainer" style="margin-top:24px;"></div>
   </div>
 
   <!-- DAILY WISE GROUP REPORT -->
@@ -265,6 +278,59 @@ canvas{max-height:320px}
 </div>
 
 <script>
+// Populate year dropdown (only once, avoid redeclaration)
+if (globalThis._yearDropdownPopulated === undefined) {
+  globalThis._yearDropdownPopulated = true;
+  var yearSelect = document.getElementById('year');
+  var cy = new Date().getFullYear();
+  for(let y=cy-5;y<=cy+5;y++){
+    yearSelect.innerHTML += `<option value="${y}"${y===cy ? ' selected' : ''}>${y}</option>`;
+  }
+}
+
+// Date vs Income Chart
+let dateIncomeChart = null;
+
+function renderDateIncomeChartAndTable(dailyDetails, month, year) {
+  const ctx = document.getElementById('dateIncomeChart').getContext('2d');
+  const days = Object.keys(dailyDetails).sort((a,b)=>Number(a)-Number(b));
+  const labels = days.map(day => `${day}-${Number(month)+1}-${year}`);
+  const incomeData = days.map(day => dailyDetails[day].paidAmount || 0);
+
+  if(dateIncomeChart) dateIncomeChart.destroy();
+  dateIncomeChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Income (₹)',
+        data: incomeData,
+        borderColor: '#0f766e',
+        backgroundColor: 'rgba(20,184,166,0.1)',
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: true } },
+      scales: { x: { title: { display: true, text: 'Date' } }, y: { title: { display: true, text: 'Income (₹)' } } }
+    }
+  });
+
+  // Table
+  let tableHtml = '<table style="width:100%;border-collapse:collapse;margin-top:10px;">';
+  tableHtml += '<thead><tr style="background:#e0f7fa;color:#0f766e;font-weight:700;"><th style="padding:10px;border:1px solid #ddd;">Date</th><th style="padding:10px;border:1px solid #ddd;">Income (₹)</th></tr></thead><tbody>';
+  if(days.length) {
+    days.forEach((day, idx) => {
+      tableHtml += `<tr><td style="padding:10px;border:1px solid #eee;">${labels[idx]}</td><td style="padding:10px;border:1px solid #eee;">₹${dailyDetails[day].paidAmount.toLocaleString('en-IN')}</td></tr>`;
+    });
+  } else {
+    tableHtml += '<tr><td colspan="2" style="text-align:center;padding:18px;color:#888;">No daily income data for this month.</td></tr>';
+  }
+  tableHtml += '</tbody></table>';
+  document.getElementById('dateIncomeTableContainer').innerHTML = tableHtml;
+}
 // OVERALL CLINIC STATS LOGIC (was payment status)
 async function loadOverallClinicStats() {
   const token = localStorage.getItem("token");
@@ -295,10 +361,9 @@ async function loadOverallClinicStats() {
   document.getElementById("tDailyPaid").innerText = "₹" + todayPaid.toLocaleString("en-IN");
   document.getElementById("tDue").innerText = "₹" + totalDue.toLocaleString("en-IN");
 }
-loadOverallClinicStats();
-
 // AUTO-SELECT CURRENT MONTH AND YEAR, SHOW GRAPH
-window.addEventListener('DOMContentLoaded', () => {
+globalThis.addEventListener('DOMContentLoaded', () => {
+  loadOverallClinicStats();
   const now = new Date();
   const month = now.getMonth();
   const year = now.getFullYear();
@@ -322,12 +387,7 @@ window.addEventListener('DOMContentLoaded', () => {
 const token=localStorage.getItem("token");
 if(!token) location.href="index.html";
 
-// Year dropdown
-const yearSelect=document.getElementById("year");
-const cy=new Date().getFullYear();
-for(let y=cy-5;y<=cy+5;y++){
-  yearSelect.innerHTML+=`<option ${y===cy?"selected":""}>${y}</option>`;
-}
+// Year dropdown logic moved above to avoid duplicate declarations
 
 // Chart elements
 const monthlyChartEl=document.getElementById("monthlyChart");
@@ -364,7 +424,7 @@ async function generateReports(){
       yearly[d.getMonth()]=(yearly[d.getMonth()]||0)+(p.paidAmount||0);
     }
 
-    if(d.getMonth()==monthVal && d.getFullYear()==yearVal){
+    if(d.getMonth()==Number(monthVal) && d.getFullYear()==Number(yearVal)){
       mTotal+=p.totalAmount||0;
       mPaid+=p.paidAmount||0;
       if(due>0) mDue+=due;
@@ -393,13 +453,15 @@ async function generateReports(){
       if(p.paymentHistory){
         p.paymentHistory.forEach(payment => {
           const paymentDate = new Date(payment.date);
-          if(paymentDate.getDate() === dayKey && paymentDate.getMonth() === Number.parseInt(monthVal) && paymentDate.getFullYear() === Number.parseInt(yearVal)){
+          if(paymentDate.getDate() === dayKey && paymentDate.getMonth() === Number(monthVal) && paymentDate.getFullYear() === Number(yearVal)){
             dailyDetails[dayKey].paymentCount += 1;
           }
         });
       }
     }
   });
+  // Render date vs income chart and table
+  renderDateIncomeChartAndTable(dailyDetails, monthVal, yearVal);
 
   monthlyStats.innerHTML=`
     <div class="stat"><h3>${mCount}</h3><p>Patients</p></div>
@@ -418,19 +480,19 @@ async function generateReports(){
       return `
         <tr>
           <td style="font-weight:600;color:var(--primary);">${data.date}</td>
-          <td style="text-align:center;">${data.patients}</td>
-          <td style="text-align:center;" class="daily-total">₹${data.totalAmount.toLocaleString('en-IN')}</td>
-          <td style="text-align:center;" class="daily-paid">₹${data.paidAmount.toLocaleString('en-IN')}</td>
-          <td style="text-align:center;" class="daily-due">₹${data.dueAmount.toLocaleString('en-IN')}</td>
-          <td style="text-align:center;">${data.paymentCount}</td>
+          <td>${data.patients}</td>
+          <td>₹${data.totalAmount.toLocaleString('en-IN')}</td>
+          <td>₹${data.paidAmount.toLocaleString('en-IN')}</td>
+          <td>₹${data.dueAmount.toLocaleString('en-IN')}</td>
+          <td>${data.paymentCount}</td>
         </tr>
       `;
-    }).join("");
+    }).join('');
   } else {
     dailyReportBody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">No data for this month</td></tr>`;
   }
 
-  yearlyStats.innerHTML=`
+  yearlyStats.innerHTML = `
     <div class="stat"><h3>${yCount}</h3><p>Patients</p></div>
     <div class="stat"><h3>₹${yTotal}</h3><p>Total</p></div>
     <div class="stat"><h3>₹${yPaid}</h3><p>Collected</p></div>
@@ -438,19 +500,20 @@ async function generateReports(){
   `;
 
   if(monthlyChart) monthlyChart.destroy();
-  monthlyChart=new Chart(monthlyChartEl,{
-    type:"bar",
-    data:{labels:Object.keys(daily),
-      datasets:[{label:"Daily Collection",data:Object.values(daily),backgroundColor:"#0f766e"}]
+  monthlyChart = new Chart(monthlyChartEl, {
+    type: "bar",
+    data: {
+      labels: Object.keys(daily),
+      datasets: [{ label: "Daily Collection", data: Object.values(daily), backgroundColor: "#0f766e" }]
     }
   });
 
   if(yearlyChart) yearlyChart.destroy();
-  yearlyChart=new Chart(yearlyChartEl,{
-    type:"line",
-    data:{
-      labels:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
-      datasets:[{label:"Monthly Collection",data:Object.values(yearly),borderColor:"#14b8a6"}]
+  yearlyChart = new Chart(yearlyChartEl, {
+    type: "line",
+    data: {
+      labels: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+      datasets: [{ label: "Monthly Collection", data: Object.values(yearly), borderColor: "#14b8a6" }]
     }
   });
 }
