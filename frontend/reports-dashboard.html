@@ -213,15 +213,11 @@ canvas{max-height:320px}
     </div>
   </div>
 
-  <!-- FILTER -->
-  <div class="card">
-    <!-- Filter removed for auto graph -->
-  </div>
-
   <!-- MONTHLY -->
   <div class="card">
-    <h3>📅 Monthly Summary</h3>
+    <h3 style="display:flex;align-items:center;gap:10px;color:var(--primary)"><i class="fa-solid fa-calendar-days"></i> Monthly Summary</h3>
     <div id="monthlyStats" class="stats"></div>
+    <div id="monthlyChartEmpty" style="text-align:center;color:#888;padding:40px 0;display:none;">No monthly data available for this period.</div>
   </div>
 
   <div class="card">
@@ -230,7 +226,7 @@ canvas{max-height:320px}
 
   <!-- DAILY WISE GROUP REPORT -->
   <div class="card">
-    <h3>📊 Daily Wise Group Report for Month</h3>
+    <h3 style="display:flex;align-items:center;gap:10px;color:var(--primary)"><i class="fa-solid fa-chart-column"></i> Daily Wise Group Report for Month</h3>
     <div id="dailyReportContainer" style="overflow-x:auto;">
       <table id="dailyReportTable" style="width:100%;border-collapse:collapse;margin-top:15px;">
         <thead>
@@ -252,8 +248,9 @@ canvas{max-height:320px}
 
   <!-- YEARLY -->
   <div class="card">
-    <h3>📆 Yearly Summary</h3>
+    <h3 style="display:flex;align-items:center;gap:10px;color:var(--primary)"><i class="fa-solid fa-calendar"></i> Yearly Summary</h3>
     <div id="yearlyStats" class="stats"></div>
+    <div id="yearlyChartEmpty" style="text-align:center;color:#888;padding:40px 0;display:none;">No yearly data available for this period.</div>
   </div>
 
   <div class="card">
@@ -473,6 +470,22 @@ function downloadExcel(){
 }
 
 function goBack(){ location.href="dashboard.html"; }
+
+// Show empty chart messages if no data
+function showEmptyChartMessages(monthlyData, yearlyData) {
+  document.getElementById('monthlyChartEmpty').style.display = monthlyData && monthlyData.length ? 'none' : '';
+  document.getElementById('yearlyChartEmpty').style.display = yearlyData && yearlyData.length ? 'none' : '';
+}
+
+// Patch generateReports to show empty chart messages
+const originalGenerateReports = generateReports;
+generateReports = async function() {
+  await originalGenerateReports.apply(this, arguments);
+  // Get monthly and yearly data from charts
+  let monthlyData = monthlyChart && monthlyChart.data && monthlyChart.data.datasets[0] ? monthlyChart.data.datasets[0].data : [];
+  let yearlyData = yearlyChart && yearlyChart.data && yearlyChart.data.datasets[0] ? yearlyChart.data.datasets[0].data : [];
+  showEmptyChartMessages(monthlyData, yearlyData);
+}
 </script>
 
 </body>
