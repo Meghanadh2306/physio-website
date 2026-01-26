@@ -250,7 +250,58 @@ const cy=new Date().getFullYear();
 for(let y=cy-5;y<=cy+5;y++){
   yearSelect.innerHTML+=`<option ${y===cy?"selected":""}>${y}</option>`;
 }
+async function loadPatients(){
+  const res=await fetch(
+    `${API}/patients?search=${searchInput.value}&status=${statusSelect.value}&doctor=${doctorSelect.value}`,
+    { headers:{Authorization:`Bearer ${token}`} }
+  );
+  all=await res.json();
+  updateStats();
+  render();
+}
 
+function updateStats(){
+  let totalAmount=0, totalPaid=0, dailyPaid=0, totalDue=0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  all.forEach(p=>{
+    totalAmount+=Number(p.totalAmount||0);
+    totalPaid+=Number(p.paidAmount||0);
+    totalDue+=Number(p.dueAmount||0);
+    
+    // Calculate today's payments
+    if(p.paymentHistory){
+      p.paymentHistory.forEach(ph=>{
+        const paymentDate = new Date(ph.date);
+        paymentDate.setHours(0, 0, 0, 0);
+        if(paymentDate.getTime() === today.getTime() && ph.entryType === "Payment"){
+          dailyPaid += Number(ph.amount||0);
+        }
+      });
+    }
+  });
+
+  tTotal.innerText=all.length;
+  tOngoing.innerText=all.filter(p=>p.status==="Ongoing").length;
+  tCompleted.innerText=all.filter(p=>p.status==="Completed").length;
+
+  tAmount.innerText="₹"+totalAmount.toLocaleString("en-IN");
+  tPaid.innerText="₹"+totalPaid.toLocaleString("en-IN");
+  tDailyPaid.innerText="₹"+dailyPaid.toLocaleString("en-IN");
+  tDue.innerText="₹"+totalDue.toLocaleString("en-IN");
+}
+async function loadDoctors(){
+  const res = await fetch(`${API}/doctors`,{
+    headers:{ Authorization:`Bearer ${token}` }
+  });
+
+  const doctors = await res.json();
+
+  doctorSelect.innerHTML =
+    `<option value="">All Doctors</option>` +
+    doctors.map(d => `<option value="${d.name}">${d.name}</option>`).join("");
+}
 // Chart elements
 const monthlyChartEl=document.getElementById("monthlyChart");
 const yearlyChartEl=document.getElementById("yearlyChart");
@@ -323,37 +374,6 @@ async function generateReports(){
     }
   });
   
-function updateStats(){
-  let totalAmount=0, totalPaid=0, dailyPaid=0, totalDue=0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  all.forEach(p=>{
-    totalAmount+=Number(p.totalAmount||0);
-    totalPaid+=Number(p.paidAmount||0);
-    totalDue+=Number(p.dueAmount||0);
-    
-    // Calculate today's payments
-    if(p.paymentHistory){
-      p.paymentHistory.forEach(ph=>{
-        const paymentDate = new Date(ph.date);
-        paymentDate.setHours(0, 0, 0, 0);
-        if(paymentDate.getTime() === today.getTime() && ph.entryType === "Payment"){
-          dailyPaid += Number(ph.amount||0);
-        }
-      });
-    }
-  });
-
-  tTotal.innerText=all.length;
-  tOngoing.innerText=all.filter(p=>p.status==="Ongoing").length;
-  tCompleted.innerText=all.filter(p=>p.status==="Completed").length;
-
-  tAmount.innerText="₹"+totalAmount.toLocaleString("en-IN");
-  tPaid.innerText="₹"+totalPaid.toLocaleString("en-IN");
-  tDailyPaid.innerText="₹"+dailyPaid.toLocaleString("en-IN");
-  tDue.innerText="₹"+totalDue.toLocaleString("en-IN");
-}
 
   monthlyStats.innerHTML=`
     <div class="stat"><h3>${mCount}</h3><p>Patients</p></div>
