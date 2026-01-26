@@ -160,6 +160,65 @@ canvas{max-height:320px}
 
 <div class="container">
 
+  <!-- PAYMENT STATUS CARD -->
+  <div class="card payment-status-card">
+    <h3 style="margin-bottom:18px;display:flex;align-items:center;gap:10px;color:var(--primary)"><i class="fa-solid fa-indian-rupee-sign"></i> Payment Status</h3>
+    <div class="payment-status-stats">
+      <div class="payment-stat">
+        <div class="payment-stat-label">Total Amount</div>
+        <div class="payment-stat-value" id="psTotalAmount">₹0</div>
+      </div>
+      <div class="payment-stat">
+        <div class="payment-stat-label">Total Payments</div>
+        <div class="payment-stat-value" id="psTotalPayments">₹0</div>
+      </div>
+      <div class="payment-stat">
+        <div class="payment-stat-label">Today's Paid</div>
+        <div class="payment-stat-value" id="psTodayPaid">₹0</div>
+      </div>
+      <div class="payment-stat">
+        <div class="payment-stat-label">Total Due</div>
+        <div class="payment-stat-value" id="psTotalDue">₹0</div>
+      </div>
+    </div>
+  </div>
+/* PAYMENT STATUS CARD */
+.payment-status-card {
+  background: linear-gradient(135deg, #e0f7fa 60%, #f0fdfa 100%);
+  border-left: 8px solid var(--primary);
+  margin-bottom: 28px;
+  box-shadow: 0 8px 24px rgba(20,184,166,0.08);
+}
+.payment-status-stats {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.payment-stat {
+  flex: 1 1 180px;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 18px 14px;
+  margin: 0 0 8px 0;
+  box-shadow: 0 2px 8px rgba(20,184,166,0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.payment-stat-label {
+  font-size: 14px;
+  color: #0f766e;
+  font-weight: 600;
+  margin-bottom: 6px;
+  letter-spacing: 0.2px;
+}
+.payment-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
 
   <!-- OVERALL STATS MOVED FROM DASHBOARD -->
   <div class="card">
@@ -253,6 +312,37 @@ canvas{max-height:320px}
 </div>
 
 <script>
+// PAYMENT STATUS LOGIC
+async function loadPaymentStatus() {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+  const res = await fetch(`${API}/patients`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const patients = await res.json();
+  let totalAmount = 0, totalPayments = 0, totalDue = 0, todayPaid = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  patients.forEach(p => {
+    totalAmount += Number(p.totalAmount || 0);
+    totalPayments += Number(p.paidAmount || 0);
+    totalDue += Number(p.dueAmount || 0);
+    if (p.paymentHistory) {
+      p.paymentHistory.forEach(ph => {
+        const paymentDate = new Date(ph.date);
+        paymentDate.setHours(0, 0, 0, 0);
+        if (paymentDate.getTime() === today.getTime() && ph.entryType === "Payment") {
+          todayPaid += Number(ph.amount || 0);
+        }
+      });
+    }
+  });
+  document.getElementById("psTotalAmount").innerText = "₹" + totalAmount.toLocaleString("en-IN");
+  document.getElementById("psTotalPayments").innerText = "₹" + totalPayments.toLocaleString("en-IN");
+  document.getElementById("psTodayPaid").innerText = "₹" + todayPaid.toLocaleString("en-IN");
+  document.getElementById("psTotalDue").innerText = "₹" + totalDue.toLocaleString("en-IN");
+}
+loadPaymentStatus();
 const token=localStorage.getItem("token");
 if(!token) location.href="index.html";
 
