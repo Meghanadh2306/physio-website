@@ -717,18 +717,78 @@ app.get("/report/monthly/excel", auth, async (req, res) => {
   pts.forEach(p => { total += p.totalAmount; paid += p.paidAmount; });
 
   const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet("Monthly Report");
-  ws.addRows([
-    ["Patients", pts.length],
-    ["Total Amount", total],
-    ["Paid Amount", paid],
-    ["Due Amount", total - paid]
-  ]);
+  const ws = wb.addWorksheet("Monthly Report", {
+    pageSetup: { orientation: 'landscape' }
+  });
 
-res.setHeader(
-  "Content-Disposition",
-  `attachment; filename=monthly_report_${month}_${year}.xlsx`
-);
+  // Hospital-style header
+  ws.mergeCells('A1', 'H1');
+  ws.getCell('A1').value = 'Physio Clinic Monthly Report';
+  ws.getCell('A1').font = { size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
+  ws.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+  ws.getCell('A1').fill = { type: 'gradient', gradient: 'angle', degree: 0, stops: [
+    { position: 0, color: { argb: 'FF0f766e' } },
+    { position: 1, color: { argb: 'FF14b8a6' } }
+  ]};
+
+  ws.mergeCells('A2', 'H2');
+  ws.getCell('A2').value = `Month: ${month}/${year}`;
+  ws.getCell('A2').font = { size: 12, bold: true };
+  ws.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+
+  // Summary section
+  ws.addRow([]);
+  ws.addRow(['Total Patients', pts.length, '', 'Total Amount', total, '', 'Paid Amount', paid]);
+  ws.addRow(['', '', '', 'Due Amount', total - paid]);
+  ws.addRow([]);
+
+  // Table header
+  const headerRow = ws.addRow([
+    'Patient Name', 'Age', 'Gender', 'Phone', 'Appointment Date', 'Total Amount', 'Paid Amount', 'Due Amount'
+  ]);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0f766e' } };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+  // Table body
+  pts.forEach(p => {
+    ws.addRow([
+      p.name,
+      p.age || '',
+      p.gender || '',
+      p.phone || '',
+      p.appointmentDate ? new Date(p.appointmentDate).toLocaleDateString('en-IN') : '',
+      p.totalAmount || 0,
+      p.paidAmount || 0,
+      (p.totalAmount || 0) - (p.paidAmount || 0)
+    ]);
+  });
+
+  // Auto width for all columns
+  ws.columns.forEach(col => {
+    let max = 12;
+    col.eachCell({ includeEmpty: true }, cell => {
+      max = Math.max(max, (cell.value ? cell.value.toString().length : 0) + 2);
+    });
+    col.width = max;
+  });
+
+  // Add border to all cells
+  ws.eachRow(row => {
+    row.eachCell(cell => {
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF14b8a6' } },
+        left: { style: 'thin', color: { argb: 'FF14b8a6' } },
+        bottom: { style: 'thin', color: { argb: 'FF14b8a6' } },
+        right: { style: 'thin', color: { argb: 'FF14b8a6' } }
+      };
+    });
+  });
+
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=monthly_report_${month}_${year}.xlsx`
+  );
   await wb.xlsx.write(res);
   res.end();
 });
