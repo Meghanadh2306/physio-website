@@ -1,2 +1,2 @@
-// Set API URL to deployed backend
-const API = "https://physio-website-nih7.onrender.com";
+// Auto-detect API URL based on environment
+const API = window.location.origin;
