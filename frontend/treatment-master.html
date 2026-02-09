@@ -10,7 +10,7 @@
 
 <style>
 body{
-  font-family:"Segoe UI",Arial;
+  font-family:"Segoe UI",Arial,sans-serif;
   background:#f1f5f9;
   margin:0;
   padding:30px;
@@ -218,7 +218,9 @@ function goBack(){
   location.href="dashboard.html";
 }
 
-loadTreatments();
+
+// Use top-level await for async call
+await loadTreatments();
 </script>
 
 </body>

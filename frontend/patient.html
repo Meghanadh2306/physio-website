@@ -46,7 +46,7 @@ body{
 }
 .back{
   background:#475569;
-  color:white;
+  color:#f1f1f1; /* Improved contrast */
   border:none;
   padding:10px 18px;
   border-radius:10px;
@@ -132,7 +132,7 @@ table{
 }
 th{
   background:var(--primary);
-  color:white;
+  color:#f1f1f1; /* Improved contrast */
   padding:14px;
 }
 td{
@@ -155,7 +155,7 @@ td{
 .treatment-badge{
   display:inline-block;
   background:linear-gradient(135deg, #06b6d4, #0891b2);
-  color:white;
+  color:#f1f1f1; /* Improved contrast */
   padding:10px 16px;
   border-radius:10px;
   font-weight:600;
@@ -378,7 +378,7 @@ async function loadPatient(){
     const latestVisit = p.treatmentHistory[p.treatmentHistory.length - 1];
     if(latestVisit && latestVisit.treatments){
       latestVisit.treatments.forEach(t => {
-        const baseName = t.treatmentName.replace(/\s*\(Previous\)\s*/g, '').trim();
+        const baseName = t.treatmentName.replaceAll('(Previous)', '').replaceAll(/\s+/g, ' ').trim();
         if(!treatmentNamesAdded.has(baseName)){
           treatmentNamesAdded.add(baseName);
           allTreatmentsToDisplay.push({
@@ -536,7 +536,7 @@ async function saveTreatments(){
   }
 
   document.querySelectorAll("#treatmentTable tr").forEach(r=>{
-    const name = r.children[0].innerText.replace(/\s*\(Previous\)\s*/g, '').trim();
+    const name = r.children[0].innerText.replaceAll('(Previous)', '').replaceAll(/\s+/g, ' ').trim();
     const price = +r.querySelector(".priceInput").value;
     const days = +r.querySelector(".daysInput").value;
     const amt = price * days;
@@ -697,9 +697,10 @@ async function deleteInvoice(patientId, invoiceNumber) {
   loadInvoiceHistory(patientId);
 }
 
-loadInvoiceHistory(id);
 
-loadPatient();
+// Use top-level await for async calls
+await loadInvoiceHistory(id);
+await loadPatient();
 </script>
 
 </body>
