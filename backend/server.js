@@ -1,12 +1,25 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const ExcelJS = require("exceljs");
-const PDFDocument = require("pdfkit");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const path = require("node:path");
-require("dotenv").config();
+
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import ExcelJS from "exceljs";
+import PDFDocument from "pdfkit";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import path from "node:path";
+import dotenv from "dotenv";
+import reportRoutes from "./report.js";
+import doctorRoutes from "./doctor.js";
+import adminRoutes from "./admin.js";
+import Patient from "./models/patient.js";
+import Doctor from "./models/doctor.js";
+import Admin from "./models/admin.js";
+import { fileURLToPath } from 'url';
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors({
@@ -18,17 +31,10 @@ app.use(cors({
 app.use(express.json());
 
 /* ================= ROUTES ================= */
-const reportRoutes = require("./report");
-app.use("/reports", reportRoutes);
-const doctorRoutes = require("./doctor");
-app.use("/doctors", doctorRoutes);
-const adminRoutes = require("./admin");
-app.use("/admin", adminRoutes);
 
-/* ================= MODELS ================= */
-const Patient = require("./models/patient");
-const Doctor = require("./models/doctor");
-const Admin = require("./models/admin");
+app.use("/reports", reportRoutes);
+app.use("/doctors", doctorRoutes);
+app.use("/admin", adminRoutes);
 
 const Treatment = mongoose.model("Treatment", new mongoose.Schema({
   name: { type: String, unique: true },
