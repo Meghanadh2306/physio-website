@@ -596,7 +596,18 @@ function downloadInvoice(patientId = id, invoiceNumber = "") {
 }
 
 function goBack(){
-  location.href="dashboard.html";
+  // Try to go to dashboard.html, fallback to root if not found
+  fetch('dashboard.html', { method: 'HEAD' })
+    .then(res => {
+      if (res.ok) {
+        location.href = 'dashboard.html';
+      } else {
+        location.href = '/';
+      }
+    })
+    .catch(() => {
+      location.href = '/';
+    });
 }
 
 async function deletePayment(paymentIndex){

@@ -5,7 +5,7 @@ const ExcelJS = require("exceljs");
 const PDFDocument = require("pdfkit");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const path = require("path");
+const path = require("node:path");
 require("dotenv").config();
 
 const app = express();
@@ -41,12 +41,13 @@ app.use("/assets", express.static(path.resolve(__dirname, "assets")));
 app.use(express.static(path.join(__dirname, "..", "frontend")));
 
 /* ================= MONGODB ================= */
-mongoose.connect(process.env.MONGO_URL)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch(err => {
-    console.error("❌ MongoDB Error:", err);
-    process.exit(1);
-  });
+try {
+  await mongoose.connect(process.env.MONGO_URL);
+  console.log("✅ MongoDB Connected");
+} catch (err) {
+  console.error("❌ MongoDB Error:", err);
+  process.exit(1);
+}
 //invoicde no generater
 function generateInvoiceNumber() {
   const now = new Date();
@@ -123,7 +124,7 @@ app.post("/patients", auth, async (req, res) => {
 
     // ✅ DATE FIX
     const parsedDate = new Date(appointmentDate);
-    if (isNaN(parsedDate)) {
+    if (Number.isNaN(parsedDate)) {
       return res.status(400).json({ message: "Invalid appointment date" });
     }
 
@@ -256,7 +257,7 @@ app.delete("/patient/:id/payment/:paymentIndex", auth, async (req, res) => {
     const p = await Patient.findById(req.params.id);
     if (!p) return res.status(404).json({ message: "Patient not found" });
 
-    const paymentIndex = parseInt(req.params.paymentIndex);
+    const paymentIndex = Number.parseInt(req.params.paymentIndex);
     if (paymentIndex < 0 || paymentIndex >= p.paymentHistory.length) {
       return res.status(400).json({ message: "Invalid payment index" });
     }
@@ -404,10 +405,10 @@ app.get("/patient/:id/invoices", auth, async (req, res) => {
   try {
     const patient = await Patient.findById(req.params.id);
     if (!patient) return res.json([]);
-
     res.json(patient.invoices || []);
   } catch (err) {
-    res.status(500).json([]);
+    console.error("Error fetching invoices:", err);
+    res.status(500).json({ message: "Failed to fetch invoices", error: err.message });
   }
 });
 
@@ -421,7 +422,7 @@ app.delete("/patient/:id/invoice/:invoiceNumber", auth, async (req, res) => {
       return res.status(404).json({ message: "Patient not found" });
     }
 
-    if (!patient.invoices || !patient.invoices.length) {
+    if (!patient.invoices?.length) {
       return res.status(404).json({ message: "No invoices found" });
     }
 
@@ -538,10 +539,11 @@ app.get("/patient-page", (req, res) =>
 
 
 /* ================= INVOICE PDF ================= */
+
 function formatDateDMY(dateValue) {
   if (!dateValue) return "-";
   const d = new Date(dateValue);
-  if (isNaN(d)) return "-";
+  if (Number.isNaN(d.getTime())) return "-";
 
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -768,7 +770,8 @@ app.get("/report/monthly/excel", auth, async (req, res) => {
   ws.columns.forEach(col => {
     let max = 12;
     col.eachCell({ includeEmpty: true }, cell => {
-      max = Math.max(max, (cell.value ? cell.value.toString().length : 0) + 2);
+      let cellStr = (typeof cell.value === 'object' && cell.value !== null) ? JSON.stringify(cell.value) : (cell.value ? cell.value.toString() : '');
+      max = Math.max(max, cellStr.length + 2);
     });
     col.width = max;
   });
