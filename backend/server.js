@@ -380,7 +380,7 @@ app.delete("/doctors/:id", auth, async (req, res) => {
 
 /* ================= PATIENT LIST ================= */
 app.get("/patients", auth, async (req, res) => {
-  const { search, status, doctor } = req.query;
+  const { search, status, doctor, month, year } = req.query;
   let filter = {};
 
   if (search) {
@@ -391,6 +391,16 @@ app.get("/patients", auth, async (req, res) => {
   }
   if (status) filter.status = status;
   if (doctor) filter.recommendedDoctor = doctor;
+
+  // Month and year filter for appointmentDate
+  if (month && year) {
+    // month is 1-based in JS Date, but input is 01-12, so subtract 1
+    const m = parseInt(month, 10) - 1;
+    const y = parseInt(year, 10);
+    const start = new Date(y, m, 1);
+    const end = new Date(y, m + 1, 1);
+    filter.appointmentDate = { $gte: start, $lt: end };
+  }
 
   const patients = await Patient.find(filter).sort({ createdAt: -1 });
   res.json(patients.map(p => ({
