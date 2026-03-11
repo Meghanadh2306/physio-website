@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Flatpickr for modern month/year picker -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <meta charset="UTF-8">
 <title>Hospital Dashboard</title>
 <script src="config.js"></script>
@@ -644,12 +649,12 @@ body.dark .add-treatment-row select{
     <label for="monthYearInput" style="font-size:13px;color:var(--primary);margin-left:4px;font-weight:600;">Month & Year</label>
     <div style="position:relative;">
       <input
-        type="month"
+        type="text"
         id="monthYearInput"
-        style="padding:14px 16px 14px 44px;border-radius:12px;border:1.5px solid #b2dfdb;min-width:170px;font-size:16px;background:var(--bg);color:var(--text);transition:border 0.2s;outline:none;"
+        readonly
+        style="padding:14px 16px 14px 44px;border-radius:12px;border:1.5px solid #b2dfdb;min-width:170px;font-size:16px;background:var(--bg);color:var(--text);transition:border 0.2s;outline:none;cursor:pointer;"
         title="Filter by Appointment Month & Year"
-        onfocus="this.style.borderColor='#14b8a6'"
-        onblur="this.style.borderColor='#b2dfdb'"
+        autocomplete="off"
       >
       <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#14b8a6;font-size:18px;pointer-events:none;">
         <i class="fa-regular fa-calendar"></i>
@@ -787,6 +792,41 @@ body.dark .add-treatment-row select{
 </div>
 
 <script>
+
+// Initialize flatpickr for month/year input
+document.addEventListener('DOMContentLoaded', function() {
+  if (window.flatpickr) {
+    flatpickr("#monthYearInput", {
+      plugins: [new monthSelectPlugin({
+        shorthand: true,
+        dateFormat: "F Y",
+        altFormat: "F Y",
+        theme: document.body.classList.contains('dark') ? 'dark' : 'material_blue',
+      })],
+      allowInput: false,
+      wrap: false,
+      altInput: false,
+      onOpen: function(selectedDates, dateStr, instance) {
+        // Switch theme on open if needed
+        instance.set('theme', document.body.classList.contains('dark') ? 'dark' : 'material_blue');
+      },
+      onChange: function(selectedDates, dateStr, instance) {
+        // Optionally auto-search on change
+        // loadPatients();
+      }
+    });
+  }
+});
+
+// Flatpickr monthSelect plugin loader
+if (!window.monthSelectPlugin) {
+  var script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/monthSelect/index.js';
+  script.onload = function() {
+    // Plugin loaded
+  };
+  document.head.appendChild(script);
+}
 
 const token=localStorage.getItem("token");
 if(!token) location.href="index.html";
