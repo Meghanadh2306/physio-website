@@ -365,6 +365,68 @@ app.delete("/patient/:id", auth, async (req, res) => {
   }
 });
 
+/* ================= DELETE VISIT ================= */
+app.delete("/patient/:id/visit/:visitIndex", auth, async (req, res) => {
+  try {
+    const { id, visitIndex } = req.params;
+    const index = parseInt(visitIndex, 10);
+
+    const patient = await Patient.findById(id);
+    if (!patient) return res.status(404).json({ message: "Patient not found" });
+
+    if (!patient.treatmentHistory || index < 0 || index >= patient.treatmentHistory.length) {
+      return res.status(404).json({ message: "Visit not found" });
+    }
+
+    const visitToDelete = patient.treatmentHistory[index];
+    
+    // Deduct total amount
+    if (visitToDelete.totalAmount) {
+      patient.totalAmount -= visitToDelete.totalAmount;
+    }
+
+    // Attempt to reverse the paidAmount from this visit
+    let amountToReverse = visitToDelete.paidAmount || 0;
+    
+    // Find and remove corresponding invoice
+    if (patient.invoices && patient.invoices.length > 0) {
+      const invIndex = patient.invoices.findIndex(inv => 
+        inv.treatmentStartDate === visitToDelete.startDate && 
+        inv.treatmentEndDate === visitToDelete.endDate
+      );
+      if (invIndex !== -1) {
+        amountToReverse = Math.max(amountToReverse, patient.invoices[invIndex].paidAmount || 0);
+        patient.invoices.splice(invIndex, 1);
+      }
+    }
+
+    if (amountToReverse > 0) {
+      patient.paidAmount -= amountToReverse;
+      if (patient.paidAmount < 0) patient.paidAmount = 0;
+      
+      // Keep ledger consistent
+      patient.paymentHistory.push({
+        entryType: "Refund/Reversal",
+        amount: amountToReverse,
+        paymentType: "System Adjustment (Visit Deleted)",
+        date: new Date()
+      });
+    }
+
+    // Remove visit
+    patient.treatmentHistory.splice(index, 1);
+
+    patient.status = patient.paidAmount >= patient.totalAmount ? "Completed" : "Ongoing";
+    if (patient.totalAmount === 0 && patient.paidAmount === 0) patient.status = "Ongoing";
+
+    await patient.save();
+    res.json({ message: "Visit deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to delete visit" });
+  }
+});
+
 //doctor list
 app.post("/doctors", auth, async (req, res) => {
   try {
@@ -501,22 +563,20 @@ app.delete("/patient/:id/invoice/:invoiceNumber", auth, async (req, res) => {
     );
 
     // Delete all related payments (all payments that were made for this treatment visit)
-    let deletedPaymentAmount = 0;
-    if (patient.paymentHistory && patient.paymentHistory.length > 0) {
-      // Remove all payments associated with this invoice
-      patient.paymentHistory = patient.paymentHistory.filter(payment => {
-        if (payment.entryType === "Payment") {
-          // Delete all payments made during this visit's period or all payments if it's the latest visit
-          deletedPaymentAmount += payment.amount || 0;
-          return false; // Remove all payments
-        }
-        return true; // Keep non-payment entries
+    const amountToReverse = invoiceToDelete.paidAmount || (treatmentToDelete ? (treatmentToDelete.paidAmount || 0) : 0);
+    
+    if (amountToReverse > 0) {
+      patient.paidAmount -= amountToReverse;
+      if (patient.paidAmount < 0) patient.paidAmount = 0;
+      
+      // Keep ledger consistent without destroying all payments
+      patient.paymentHistory.push({
+        entryType: "Refund/Reversal",
+        amount: amountToReverse,
+        paymentType: "System Adjustment (Invoice Deleted)",
+        date: new Date()
       });
     }
-
-    // Adjust totals
-    patient.paidAmount -= deletedPaymentAmount;
-    if (patient.paidAmount < 0) patient.paidAmount = 0;
 
     // Recalculate status
     patient.status = patient.paidAmount >= patient.totalAmount ? "Completed" : "Ongoing";

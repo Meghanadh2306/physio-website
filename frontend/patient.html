@@ -269,8 +269,6 @@ td{
           <th>Price / Day</th>
           <th>Days</th>
           <th>Total</th>
-
-        <th>Action</th>
         </tr>
       </thead>
       <tbody id="treatmentTable"></tbody>
@@ -428,7 +426,6 @@ const id = new URLSearchParams(location.search).get("id");
               <td><input type="number" class="priceInput" value="${t.price}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
               <td><input type="number" class="daysInput" value="${t.days || 0}" min="0" step="1" oninput="recalc()" placeholder="0" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
               <td class="rowTotal">₹${t.total || 0}</td>
-              <td><button class="danger" style="padding:6px 12px;font-size:13px;" onclick="deleteTreatmentRow(this)">🗑 Delete</button></td>
             </tr>
           `;
         });
@@ -441,18 +438,11 @@ const id = new URLSearchParams(location.search).get("id");
               <td><input type="number" class="priceInput" value="${price || 0}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
               <td><input type="number" class="daysInput" min="1" step="1" placeholder="0" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
               <td class="rowTotal">₹0</td>
-              <td><button class="danger" style="padding:6px 12px;font-size:13px;" onclick="deleteTreatmentRow(this)">🗑 Delete</button></td>
             </tr>
           `;
         });
       }
       recalc();
-      // Delete a treatment row from the table
-      function deleteTreatmentRow(btn) {
-        const row = btn.closest('tr');
-        row.parentNode.removeChild(row);
-        recalc();
-      }
       historyDiv.innerHTML = "";
       p.paymentHistory?.forEach((h, idx)=>{
         historyDiv.innerHTML += `
@@ -474,8 +464,13 @@ const id = new URLSearchParams(location.search).get("id");
           if (visit.treatments && visit.treatments.length > 0) {
             treatmentHistoryDiv.innerHTML += `
               <div style="margin-bottom:18px;">
-                <b>Visit ${p.treatmentHistory.length - vIdx}:</b>
-                <span style="color:#64748b;font-size:13px;"> (${visit.startDate ? '🟢 ' + visit.startDate : ''}${visit.endDate ? ' - 🔴 ' + visit.endDate : ''})</span>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <b>Visit ${p.treatmentHistory.length - vIdx}:</b>
+                    <span style="color:#64748b;font-size:13px;"> (${visit.startDate ? '🟢 ' + visit.startDate : ''}${visit.endDate ? ' - 🔴 ' + visit.endDate : ''})</span>
+                  </div>
+                  <button class="danger" style="padding:4px 10px;font-size:12px;" onclick="deleteVisit(${p.treatmentHistory.length - 1 - vIdx})">🗑 Delete Visit</button>
+                </div>
                 <table style="width:100%;margin-top:8px;font-size:14px;background:#f8fafc;border-radius:10px;overflow:hidden;">
                   <thead>
                     <tr style="background:#e0f2fe;">
@@ -722,7 +717,29 @@ const id = new URLSearchParams(location.search).get("id");
     }
   }
 
+  async function deleteVisit(visitIndex){
+    if(confirm("⚠️ Are you sure you want to delete this entire visit? This will also remove the associated invoice.")){
+      try {
+        const response = await fetch(`${API}/patient/${id}/visit/${visitIndex}`,{
+          method:"DELETE",
+          headers:{ Authorization:`Bearer ${token}` }
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          alert(`❌ ${error.message || 'Failed to delete visit'}`);
+          return;
+        }
+        alert("✅ Visit deleted successfully");
+        loadPatient();
+        loadInvoiceHistory(id);
+      } catch (error) {
+        alert("❌ Error deleting visit: " + (error && error.message ? error.message : error));
+      }
+    }
+  }
+
   // Expose for HTML event handlers
+  window.deleteVisit = deleteVisit;
   window.saveTreatments = saveTreatments;
   window.downloadInvoice = downloadInvoice;
   window.goBack = goBack;
