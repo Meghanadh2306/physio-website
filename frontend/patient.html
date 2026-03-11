@@ -269,6 +269,8 @@ td{
           <th>Price / Day</th>
           <th>Days</th>
           <th>Total</th>
+
+        <th>Action</th>
         </tr>
       </thead>
       <tbody id="treatmentTable"></tbody>
@@ -292,9 +294,15 @@ td{
 </div>
 
   <!-- HISTORY -->
+
   <div class="card section">
     <h2>📜 Payment History</h2>
     <div id="history" class="history"></div>
+  </div>
+
+  <div class="card section">
+    <h2>🩺 Treatment History</h2>
+    <div id="treatmentHistory" class="history"></div>
   </div>
 
 
@@ -415,28 +423,36 @@ const id = new URLSearchParams(location.search).get("id");
       if(allTreatmentsToDisplay.length > 0){
         allTreatmentsToDisplay.forEach((t, idx) => {
           table.innerHTML += `
-            <tr>
+            <tr data-idx="${idx}">
               <td>${t.name} ${t.isFromHistory ? '<small style="color:#999;">(Previous)</small>' : ''}</td>
               <td><input type="number" class="priceInput" value="${t.price}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
               <td><input type="number" class="daysInput" value="${t.days || 0}" min="0" step="1" oninput="recalc()" placeholder="0" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
               <td class="rowTotal">₹${t.total || 0}</td>
+              <td><button class="danger" style="padding:6px 12px;font-size:13px;" onclick="deleteTreatmentRow(this)">🗑 Delete</button></td>
             </tr>
           `;
         });
       } else {
-        Object.keys(treatmentPrices).forEach(name => {
+        Object.keys(treatmentPrices).forEach((name, idx) => {
           const price = treatmentPrices[name];
           table.innerHTML += `
-            <tr>
+            <tr data-idx="${idx}">
               <td>${name}</td>
               <td><input type="number" class="priceInput" value="${price || 0}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
               <td><input type="number" class="daysInput" min="1" step="1" placeholder="0" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
               <td class="rowTotal">₹0</td>
+              <td><button class="danger" style="padding:6px 12px;font-size:13px;" onclick="deleteTreatmentRow(this)">🗑 Delete</button></td>
             </tr>
           `;
         });
       }
       recalc();
+      // Delete a treatment row from the table
+      function deleteTreatmentRow(btn) {
+        const row = btn.closest('tr');
+        row.parentNode.removeChild(row);
+        recalc();
+      }
       historyDiv.innerHTML = "";
       p.paymentHistory?.forEach((h, idx)=>{
         historyDiv.innerHTML += `
@@ -449,6 +465,47 @@ const id = new URLSearchParams(location.search).get("id");
             <button class="danger" style="padding:8px 12px; font-size:13px;" onclick="deletePayment(${idx})">🗑 Delete</button>
           </div>`;
       });
+
+      // Treatment History Section
+      const treatmentHistoryDiv = document.getElementById("treatmentHistory");
+      treatmentHistoryDiv.innerHTML = "";
+      if (p.treatmentHistory && p.treatmentHistory.length > 0) {
+        p.treatmentHistory.slice().reverse().forEach((visit, vIdx) => {
+          if (visit.treatments && visit.treatments.length > 0) {
+            treatmentHistoryDiv.innerHTML += `
+              <div style="margin-bottom:18px;">
+                <b>Visit ${p.treatmentHistory.length - vIdx}:</b>
+                <span style="color:#64748b;font-size:13px;"> (${visit.startDate ? '🟢 ' + visit.startDate : ''}${visit.endDate ? ' - 🔴 ' + visit.endDate : ''})</span>
+                <table style="width:100%;margin-top:8px;font-size:14px;background:#f8fafc;border-radius:10px;overflow:hidden;">
+                  <thead>
+                    <tr style="background:#e0f2fe;">
+                      <th style="padding:8px 6px;">Treatment</th>
+                      <th style="padding:8px 6px;">Price/Day</th>
+                      <th style="padding:8px 6px;">Days</th>
+                      <th style="padding:8px 6px;">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${visit.treatments.map(t => `
+                      <tr>
+                        <td>${t.treatmentName}</td>
+                        <td>₹${t.pricePerDay}</td>
+                        <td>${t.days}</td>
+                        <td>₹${t.totalAmount}</td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            `;
+          }
+        });
+        if (!treatmentHistoryDiv.innerHTML) {
+          treatmentHistoryDiv.innerHTML = '<p>No treatment history found.</p>';
+        }
+      } else {
+        treatmentHistoryDiv.innerHTML = '<p>No treatment history found.</p>';
+      }
     }catch(err){
       alert("Error loading patient: " + (err.message || err));
     }
