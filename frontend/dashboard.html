@@ -648,11 +648,8 @@ body.dark .add-treatment-row select{
     >
   </div>
   <div style="display:flex;flex-direction:row;align-items:end;gap:8px;">
-    <button onclick="loadPatients()" title="Search" style="min-width:90px;">
-      <i class="fa-solid fa-magnifying-glass"></i> Search
-    </button>
-    <button onclick="clearFilters()" title="Clear Filters" style="background:#e5e7eb;color:#374151;min-width:90px;">
-      <i class="fa-solid fa-xmark"></i> Clear
+    <button onclick="loadPatients()" title="Search" style="min-width:110px;background:linear-gradient(90deg,#0f766e 60%,#14b8a6 100%);color:#fff;font-weight:700;font-size:16px;box-shadow:0 2px 8px rgba(20,184,166,0.10);border:none;transition:background 0.2s;">
+      <i class="fa-solid fa-magnifying-glass" style="margin-right:6px;"></i> Search
     </button>
   </div>
 </div>
@@ -759,13 +756,7 @@ body.dark .add-treatment-row select{
 </div>
 
 <script>
-function clearFilters() {
-  document.getElementById('searchInput').value = '';
-  document.getElementById('statusSelect').value = '';
-  document.getElementById('doctorSelect').value = '';
-  document.getElementById('monthYearInput').value = '';
-  loadPatients();
-}
+
 const token=localStorage.getItem("token");
 if(!token) location.href="index.html";
 
@@ -776,15 +767,15 @@ async function loadPatients(){
   // Get month-year value
   const monthYear = document.getElementById("monthYearInput")?.value;
   let month = "", year = "";
-  if(monthYear){
+  if(monthYear && monthYear.includes("-")){
     [year, month] = monthYear.split("-");
   }
 
   // Build query string
   const params = new URLSearchParams();
-  params.set("search", searchInput.value);
-  params.set("status", statusSelect.value);
-  params.set("doctor", doctorSelect.value);
+  params.set("search", document.getElementById('searchInput').value);
+  params.set("status", document.getElementById('statusSelect').value);
+  params.set("doctor", document.getElementById('doctorSelect').value);
   if(month && year){
     params.set("month", month);
     params.set("year", year);
