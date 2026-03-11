@@ -203,6 +203,12 @@ app.put("/patient/:id", auth, async (req, res) => {
     visit.paidAmount = visitPaid + addPaid;
     p.paidAmount += addPaid;
 
+    if (p.invoices && p.invoices.length > 0) {
+      const lastInvoice = p.invoices[p.invoices.length - 1];
+      lastInvoice.paidAmount = (lastInvoice.paidAmount || 0) + addPaid;
+      lastInvoice.dueAmount = (lastInvoice.dueAmount || 0) - addPaid;
+    }
+
     p.paymentHistory.push({
       entryType: "Payment",
       amount: addPaid,
@@ -268,6 +274,12 @@ app.delete("/patient/:id/payment/:paymentIndex", auth, async (req, res) => {
       const visit = p.treatmentHistory.at(-1);
       if (visit) {
         visit.paidAmount -= removedPayment.amount;
+      }
+      
+      if (p.invoices && p.invoices.length > 0) {
+        const lastInvoice = p.invoices[p.invoices.length - 1];
+        lastInvoice.paidAmount = (lastInvoice.paidAmount || 0) - removedPayment.amount;
+        lastInvoice.dueAmount = (lastInvoice.dueAmount || 0) + removedPayment.amount;
       }
     }
 
@@ -643,7 +655,7 @@ doc.text(`Gender    : ${patient.gender || "-"}`, 300, boxY + 10);
 doc.text(`Age       : ${patient.age}`, 300, boxY + 28);
 doc.text(`Address   : ${patient.address || "-"}`, 300, boxY + 46);
 doc.text(`Start Date: ${formatDateDMY(invoice?.treatmentStartDate)}`,55,boxY + 46);
-doc.text(`End Date  : ${formatDateDMY(patient.endDate)}`, 55, boxY + 64);
+doc.text(`End Date  : ${formatDateDMY(invoice?.treatmentEndDate || patient.endDate)}`, 55, boxY + 64);
 doc.text(`Invoice No: ${invoice?.invoiceNumber || "-"}`,300,boxY + 64);
 
 doc.y = boxY + 105;
@@ -660,18 +672,30 @@ doc.y = boxY + 105;
 
     doc.moveTo(40, startY + 15).lineTo(555, startY + 15).stroke();
 
+    let targetVisit = null;
+    if (invoice && patient.treatmentHistory) {
+      targetVisit = patient.treatmentHistory.find(th => 
+        th.startDate === invoice.treatmentStartDate && th.endDate === invoice.treatmentEndDate
+      );
+    }
+    if (!targetVisit && patient.treatmentHistory) {
+      targetVisit = patient.treatmentHistory.at(-1);
+    }
+
+    const treatments = targetVisit ? targetVisit.treatments : [];
+
     let y = startY + 25;
     doc.font("Helvetica").fontSize(11);
 
-    const lastVisit = patient.treatmentHistory.at(-1);
-    lastVisit.treatments.forEach(t => {
+    treatments.forEach(t => {
       doc.text(t.treatmentName, 50, y);
       doc.text(`₹ ${t.pricePerDay}`, 250, y);
       doc.text(t.days.toString(), 340, y);
       doc.text(`₹ ${t.totalAmount}`, 420, y);
       y += 18;
     });
-if (!lastVisit || !lastVisit.treatments?.length) {
+
+if (!treatments.length) {
   doc.text("No treatment data available", 50, y);
   doc.end();
   return;
@@ -686,15 +710,13 @@ y += 10;
 // calculate total ONLY for above treatments
 let visitTotal = 0;
 
-if (lastVisit && lastVisit.treatments.length) {
-  lastVisit.treatments.forEach(t => {
-    const amount =
-      Number(t.pricePerDay || 0) * Number(t.days || 0);
-    visitTotal += amount;
-  });
-}
-const visitPaid = visitTotal;   // ✅ FORCE FULL PAID
-const visitDue  = Math.max(visitTotal - visitPaid, 0);
+treatments.forEach(t => {
+  const amount = Number(t.pricePerDay || 0) * Number(t.days || 0);
+  visitTotal += amount;
+});
+
+const visitPaid = invoice ? (invoice.paidAmount || 0) : (targetVisit ? (targetVisit.paidAmount || 0) : visitTotal);
+const visitDue  = invoice ? (invoice.dueAmount || 0) : Math.max(visitTotal - visitPaid, 0);
 // TOTAL
 doc.font("Helvetica");
 doc.text("Total Amount", 350, y);
