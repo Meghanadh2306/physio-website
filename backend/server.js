@@ -188,25 +188,39 @@ app.put("/patient/:id", auth, async (req, res) => {
       return res.status(400).json({ message: "Payment type is required" });
     }
 
-    const visit = p.treatmentHistory.at(-1);
-    if (!visit) {
-      return res.status(400).json({ message: "No active visit found. Please add treatments first." });
+    const patientDue = p.totalAmount - p.paidAmount;
+
+    if (addPaid > patientDue) {
+      return res.status(400).json({ message: "Payment exceeds total due amount" });
     }
 
-    const visitPaid = visit.paidAmount || 0;
-    const visitDue  = visit.totalAmount - visitPaid;
-
-    if (addPaid > visitDue) {
-      return res.status(400).json({ message: "Payment exceeds due amount" });
-    }
-
-    visit.paidAmount = visitPaid + addPaid;
     p.paidAmount += addPaid;
 
+    // Distribute paid amount among unpaid visits
+    let remainingPayment = addPaid;
+    if (p.treatmentHistory && p.treatmentHistory.length > 0) {
+      for (const v of p.treatmentHistory) {
+        let vDue = (v.totalAmount || 0) - (v.paidAmount || 0);
+        if (vDue > 0 && remainingPayment > 0) {
+          let payToVisit = Math.min(vDue, remainingPayment);
+          v.paidAmount = (v.paidAmount || 0) + payToVisit;
+          remainingPayment -= payToVisit;
+        }
+      }
+    }
+
+    // Distribute remaining payment to unpaid invoices
+    let remainingPaymentForInvoices = addPaid;
     if (p.invoices && p.invoices.length > 0) {
-      const lastInvoice = p.invoices[p.invoices.length - 1];
-      lastInvoice.paidAmount = (lastInvoice.paidAmount || 0) + addPaid;
-      lastInvoice.dueAmount = (lastInvoice.dueAmount || 0) - addPaid;
+      for (const inv of p.invoices) {
+        let invDue = (inv.dueAmount || 0);
+        if (invDue > 0 && remainingPaymentForInvoices > 0) {
+          let payToInv = Math.min(invDue, remainingPaymentForInvoices);
+          inv.paidAmount = (inv.paidAmount || 0) + payToInv;
+          inv.dueAmount = invDue - payToInv;
+          remainingPaymentForInvoices -= payToInv;
+        }
+      }
     }
 
     p.paymentHistory.push({
@@ -221,8 +235,9 @@ app.put("/patient/:id", auth, async (req, res) => {
   p.status = p.paidAmount >= p.totalAmount ? "Completed" : "Ongoing";
   await p.save();
   res.json({ message: "Payment updated" });
-}catch {
-    res.status(500).json({ message: "Update failed" });
+} catch (err) {
+    console.error("Payment Update Error:", err);
+    res.status(500).json({ message: "Update failed", error: err.message });
   }
 });
 
