@@ -143,78 +143,96 @@ th{background:#f1f5f9}
 </div>
 
 <script>
-const token=localStorage.getItem("token");
-if(!token) location.href="index.html";
-
-const yearSel=document.getElementById("year");
-const cy=new Date().getFullYear();
-for(let i=cy-5;i<=cy+5;i++) yearSel.innerHTML+=`<option>${i}</option>`;
-
-function validate(){
-  if(!doctor.value || !month.value || !year.value){
-    alert("Select doctor, month and year");
-    return false;
+(()=>{
+  const token=localStorage.getItem("token");
+  if(!token){
+    alert("Session expired. Please login again.");
+    location.href="index.html";
+    return;
   }
-  return true;
-}
-async function loadDoctors(){
-  const res = await fetch(`${API}/doctors`,{
-    headers:{ Authorization:`Bearer ${token}` }
-  });
-  const doctors = await res.json();
 
-  doctor.innerHTML =
-    `<option value="">Select Doctor</option>` +
-    doctors.map(d => `<option value="${d.name}">${d.name}</option>`).join("");
-}
+  const yearSel=document.getElementById("year");
+  const cy=new Date().getFullYear();
+  for(let i=cy-5;i<=cy+5;i++) yearSel.innerHTML+=`<option>${i}</option>`;
 
-loadDoctors();
-
-
-async function viewDetails(){
-  if(!validate()) return;
-
-  const res=await fetch(`${API}/patients`,{
-    headers:{Authorization:`Bearer ${token}`}
-  });
-  const patients=await res.json();
-
-  const tbody=document.getElementById("tableBody");
-  tbody.innerHTML="";
-  let count=0;
-
-  patients.forEach((p, i)=>{
-    if(
-      p.recommendedDoctor === doctor.value &&
-      p.appointmentDate &&
-      p.appointmentDate.startsWith(`${year.value}-${month.value}`)
-    ){
-      count++;
-      tbody.innerHTML+=`
-        <tr>
-          <td>${count}</td>
-          <td>${p.name}</td>
-          <td>${p.phone}</td>
-          <td>${p.gender || "-"}</td>
-          <td>${p.appointmentDate}</td>
-        </tr>
-      `;
+  async function loadDoctors(){
+    try{
+      const res = await fetch(`${API}/doctors`,{
+        headers:{ Authorization:`Bearer ${token}` }
+      });
+      if(!res.ok) throw new Error("Failed to load doctors");
+      const doctors = await res.json();
+      doctor.innerHTML =
+        `<option value="">Select Doctor</option>` +
+        doctors.map(d => `<option value="${d.name}">${d.name}</option>`).join("");
+    }catch(err){
+      alert("Error loading doctors: " + (err.message || err));
     }
-  });
+  }
 
-  document.getElementById("preview").style.display="block";
-  if(count===0) alert("No patients found");
-}
+  function validate(){
+    if(!doctor.value || !month.value || !year.value){
+      alert("Select doctor, month and year");
+      return false;
+    }
+    return true;
+  }
 
-function downloadPDF(){
-  if(!validate()) return;
+  async function viewDetails(){
+    if(!validate()) return;
+    try{
+      const res=await fetch(`${API}/patients`,{
+        headers:{Authorization:`Bearer ${token}`}
+      });
+      if(!res.ok) throw new Error("Failed to load patients");
+      const patients=await res.json();
+      const tbody=document.getElementById("tableBody");
+      tbody.innerHTML="";
+      let count=0;
+      patients.forEach((p, i)=>{
+        if(
+          p.recommendedDoctor === doctor.value &&
+          p.appointmentDate &&
+          p.appointmentDate.startsWith(`${year.value}-${month.value}`)
+        ){
+          count++;
+          tbody.innerHTML+=`
+            <tr>
+              <td>${count}</td>
+              <td>${p.name}</td>
+              <td>${p.phone}</td>
+              <td>${p.gender || "-"}</td>
+              <td>${p.appointmentDate}</td>
+            </tr>
+          `;
+        }
+      });
+      document.getElementById("preview").style.display="block";
+      if(count===0) alert("No patients found");
+    }catch(err){
+      alert("Error loading patient details: " + (err.message || err));
+    }
+  }
 
-  const url = `${API}/reports/doctor-pdf?doctor=${encodeURIComponent(doctor.value)}&month=${month.value}&year=${year.value}`;
-  location.href = url;   // ✅ forces download
-}
+  function downloadPDF(){
+    if(!validate()) return;
+    try{
+      const url = `${API}/reports/doctor-pdf?doctor=${encodeURIComponent(doctor.value)}&month=${month.value}&year=${year.value}`;
+      location.href = url;
+    }catch(err){
+      alert("Error downloading PDF: " + (err.message || err));
+    }
+  }
 
+  function goBack(){ location.href="dashboard.html"; }
 
-function goBack(){ location.href="dashboard.html"; }
+  // Expose functions for HTML event handlers
+  window.downloadPDF = downloadPDF;
+  window.goBack = goBack;
+  window.viewDetails = viewDetails;
+
+  loadDoctors();
+})();
 </script>
 
 </body>

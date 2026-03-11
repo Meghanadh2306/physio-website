@@ -103,17 +103,21 @@ button{
 </div>
 
 <script>
-const token = localStorage.getItem("token");
+(()=>{
+  const token = localStorage.getItem("token");
+  if(!token){
+    alert("Session expired. Please login again.");
+    location.href = "index.html";
+    return;
+  }
 
-// 🔐 Protect page
-if(!token){
-location.href="index.html";
-}
+  function goBack(){
+    window.location.href = "dashboard.html";
+  }
 
-function goBack(){
-  // ✅ CORRECT PATH
-  window.location.href = "dashboard.html";
-}
+  // Expose for HTML event handler
+  window.goBack = goBack;
+})();
 </script>
 
 </body>

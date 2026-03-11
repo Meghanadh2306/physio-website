@@ -182,79 +182,84 @@ button:hover{opacity:.95}
 </div>
 
 <script>
-async function login(){
-  const u = username.value.trim();
-  const p = password.value.trim();
-  error.innerText = "";
-
-  if(!u || !p){
-    error.innerText = "Please enter username and password";
-    return;
-  }
-
-  try{
-    const res = await fetch(`${API}/login`,{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({ username:u, password:p })
-    });
-
-    const data = await res.json();
-
-    if(!res.ok){
-      error.innerText = data.message || "Invalid login";
+(()=>{
+  async function login(){
+    const u = username.value.trim();
+    const p = password.value.trim();
+    error.innerText = "";
+    if(!u || !p){
+      error.innerText = "Please enter username and password";
       return;
     }
-
-    localStorage.setItem("token", data.token);
-    location.href = "dashboard.html";
-
-  }catch{
-    error.innerText = "Server not reachable";
+    try{
+      const res = await fetch(`${API}/login`,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({ username:u, password:p })
+      });
+      const data = await res.json();
+      if(!res.ok){
+        error.innerText = data.message || "Invalid login";
+        return;
+      }
+      localStorage.setItem("token", data.token);
+      location.href = "dashboard.html";
+    }catch(err){
+      error.innerText = (err && err.message) ? err.message : "Server not reachable";
+    }
   }
-}
-function togglePass(id, el){
-  const input = document.getElementById(id);
-  const icon = el.querySelector("i");
 
-  if(input.type === "password"){
-    input.type = "text";
-    icon.className = "fa-solid fa-eye-slash";
-  }else{
-    input.type = "password";
-    icon.className = "fa-solid fa-eye";
+  function togglePass(id, el){
+    const input = document.getElementById(id);
+    const icon = el.querySelector("i");
+    if(input.type === "password"){
+      input.type = "text";
+      icon.className = "fa-solid fa-eye-slash";
+    }else{
+      input.type = "password";
+      icon.className = "fa-solid fa-eye";
+    }
   }
-}
-async function changePassword(){
-  const token = localStorage.getItem("token");
-  const oldPassword = oldPass.value;
-  const newPassword = newPass.value;
-if(!oldPassword || !newPassword || !confirmPass.value){
-  alert("Fill all fields");
-  return;
-}
-if(newPassword !== confirmPass.value){
-  alert("Passwords do not match");
-  return;
-}
-const res = await fetch(`${API}/admin/change-password`,{
-  method:"POST",
-  headers:{
-    "Content-Type":"application/json",
-    "Authorization": "Bearer " + token
-  },
-  body:JSON.stringify({ oldPassword, newPassword })
-});
-const data = await res.json();
-if(!res.ok){
-  alert(data.message || "Password change failed");
-  return;
-}
-localStorage.removeItem("token");
-alert("Password changed. Please login again.");
-location.reload();
 
-}
+  async function changePassword(){
+    const token = localStorage.getItem("token");
+    const oldPassword = oldPass.value;
+    const newPassword = newPass.value;
+    if(!oldPassword || !newPassword || !confirmPass.value){
+      alert("Fill all fields");
+      return;
+    }
+    if(newPassword !== confirmPass.value){
+      alert("Passwords do not match");
+      return;
+    }
+    try{
+      const res = await fetch(`${API}/admin/change-password`,{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "Authorization": "Bearer " + token
+        },
+        body:JSON.stringify({ oldPassword, newPassword })
+      });
+      const data = await res.json();
+      if(!res.ok){
+        alert(data.message || "Password change failed");
+        return;
+      }
+      localStorage.removeItem("token");
+      alert("Password changed. Please login again.");
+      location.reload();
+    }catch(err){
+      alert((err && err.message) ? err.message : "Server not reachable");
+    }
+  }
+
+  // Expose for HTML event handlers
+  window.login = login;
+  window.togglePass = togglePass;
+  window.changePassword = changePassword;
+})();
 </script>
 </body>
 </html>

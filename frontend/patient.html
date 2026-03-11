@@ -304,403 +304,378 @@ td{
 const token = localStorage.getItem("token");
 const id = new URLSearchParams(location.search).get("id");
 
-if(!token) location.href="index.html";
-if(!id){ 
-  alert("Invalid patient"); 
-  location.href="dashboard.html"; 
-}
-
-const pname   = document.getElementById("pname");
-const pphone  = document.getElementById("pphone");
-const pstatus = document.getElementById("pstatus");
-
-const totalEl = document.getElementById("total");
-const paidEl  = document.getElementById("paid");
-const dueEl   = document.getElementById("due");
-const historyDiv = document.getElementById("history");
-const table = document.getElementById("treatmentTable");
-
-let treatmentPrices = {};
-let treatmentData = {};
-
-async function loadTreatmentMaster(){
-  const res = await fetch(`${API}/treatments`,{
-    headers:{ Authorization:`Bearer ${token}` }
-  });
-  const data = await res.json();
-  treatmentPrices = {};
-  treatmentData = {};
-  data.forEach(t => {
-    treatmentPrices[t.name] = t.pricePerDay;
-    treatmentData[t._id] = t;
-  });
-}
-
-function recalc(){
-  let total = 0;
-  document.querySelectorAll("#treatmentTable tr").forEach(r=>{
-    const days = +r.querySelector(".daysInput").value || 0;
-    const price = +r.querySelector(".priceInput").value || 0;
-    const amt = days * price;
-    r.querySelector(".rowTotal").innerText = "₹" + amt;
-    total += amt;
-  });
-  document.getElementById("grandTotal").innerText = total;
-}
-
-async function loadPatient(){
-  await loadTreatmentMaster();
-  console.log("Treatment Data loaded:", treatmentData);
-  console.log("Treatment Prices loaded:", treatmentPrices);
-
-  const res = await fetch(`${API}/patient/${id}`,{
-    headers:{ Authorization:`Bearer ${token}` }
-  });
-  const p = await res.json();
-  console.log("Patient data:", p);
-  
-  pname.innerText = p.name;
-  pphone.innerText = p.phone;
-  pstatus.innerText = p.status;
-
-  totalEl.innerText = p.totalAmount || 0;
-  paidEl.innerText = p.paidAmount || 0;
-  dueEl.innerText  = (p.totalAmount || 0) - (p.paidAmount || 0);
-
-  table.innerHTML = "";
-
-  // ✅ COLLECT ALL TREATMENTS (OLD + NEW) - NO DUPLICATES
-  let allTreatmentsToDisplay = [];
-  let treatmentNamesAdded = new Set(); // Track unique treatment names
-
-  // Add from treatment history - ONLY from the LATEST visit to avoid duplicates
-  if(p.treatmentHistory?.length){
-    const latestVisit = p.treatmentHistory[p.treatmentHistory.length - 1];
-    if(latestVisit && latestVisit.treatments){
-      latestVisit.treatments.forEach(t => {
-        const baseName = t.treatmentName.replace(/\s*\(Previous\)\s*/g, '').trim();
-        if(!treatmentNamesAdded.has(baseName)){
-          treatmentNamesAdded.add(baseName);
-          allTreatmentsToDisplay.push({
-            name: t.treatmentName,
-            price: t.pricePerDay,
-            days: t.days,
-            total: t.totalAmount,
-            isFromHistory: true
-          });
-        }
-      });
-    }
-  }
-
-  // Add from newly assigned treatments (from dashboard) - ALWAYS add these
-  if(p.treatments && p.treatments.length > 0){
-    console.log("Adding treatments from patient.treatments:", p.treatments);
-    p.treatments.forEach(treatmentId => {
-      const treatment = treatmentData[treatmentId];
-      console.log("Looking for treatment:", treatmentId, "Found:", treatment);
-      
-      if(treatment){
-        // Check if this treatment is already added to avoid duplicates
-        if(!treatmentNamesAdded.has(treatment.name)){
-          treatmentNamesAdded.add(treatment.name);
-          allTreatmentsToDisplay.push({
-            name: treatment.name,
-            price: treatment.pricePerDay || 0,
-            days: 0,
-            total: 0,
-            isFromHistory: false
-          });
-        }
-      } else {
-        console.warn("Treatment not found for ID:", treatmentId, "Available IDs:", Object.keys(treatmentData));
-      }
-    });
-  }
-
-  console.log("All treatments to display:", allTreatmentsToDisplay);
-
-  // Render treatments
-  if(allTreatmentsToDisplay.length > 0){
-    allTreatmentsToDisplay.forEach((t, idx) => {
-      table.innerHTML += `
-        <tr>
-          <td>${t.name} ${t.isFromHistory ? '<small style="color:#999;">(Previous)</small>' : ''}</td>
-          <td><input type="number" class="priceInput" value="${t.price}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
-          <td><input type="number" class="daysInput" value="${t.days || 0}" min="0" step="1" oninput="recalc()" placeholder="0" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
-          <td class="rowTotal">₹${t.total || 0}</td>
-        </tr>
-      `;
-    });
-  }
-  // ✅ FALLBACK - SHOW ALL TREATMENTS FROM MASTER IF NO HISTORY AND NO ASSIGNED TREATMENTS
-  else {
-    console.log("Using fallback - showing all master treatments");
-    Object.keys(treatmentPrices).forEach(name => {
-      const price = treatmentPrices[name];
-
-      table.innerHTML += `
-        <tr>
-          <td>${name}</td>
-          <td><input type="number" class="priceInput" value="${price || 0}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
-          <td><input type="number" class="daysInput" min="1" step="1" placeholder="0" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
-          <td class="rowTotal">₹0</td>
-        </tr>
-      `;
-    });
-  }
-
-  recalc();
-
-  historyDiv.innerHTML = "";
-  p.paymentHistory?.forEach((h, idx)=>{
-    historyDiv.innerHTML += `
-      <div class="history-item" style="display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          ${h.entryType} – ₹${h.amount}
-          ${h.paymentType ? `<br><small>💳 ${h.paymentType}</small>` : ''}
-          <br><small>${new Date(h.date).toLocaleString()}</small>
-        </div>
-        <button class="danger" style="padding:8px 12px; font-size:13px;" onclick="deletePayment(${idx})">🗑 Delete</button>
-      </div>`;
-  });
-}
-
-async function savePayment(){
-  const amt = Number(document.getElementById("addPaid").value);
-  const paymentType = document.getElementById("paymentType").value;
-  const notes = document.getElementById("notes").value;
-
-  // ✅ FORM VALIDATION
-  if (!paymentType) {
-    alert("❌ Please select a payment type");
-    return;
-  }
-
-  if (!amt || amt <= 0) {
-    alert("❌ Please enter a valid payment amount");
-    return;
-  }
-
-  if (amt > 100000) {
-    alert("❌ Payment amount cannot exceed ₹100,000");
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API}/patient/${id}`,{
-      method:"PUT",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:`Bearer ${token}`
-      },
-      body:JSON.stringify({ 
-        addPaid: amt,
-        paymentType: paymentType,
-        notes
-      })
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      alert(`❌ ${error.message || 'Failed to save payment'}`);
-      return;
-    }
-
-    alert("✅ Payment saved successfully");
-    document.getElementById("addPaid").value = "";
-    document.getElementById("paymentType").value = "";
-    document.getElementById("notes").value = "";
-    loadPatient();
-  } catch (error) {
-    console.error(error);
-    alert("❌ Error saving payment. Check console.");
-  }
-}
-
-
-async function saveTreatments(){
-  let total=0, rows=[];
-  const startDate = document.getElementById("startDate").value;
-  const endDate   = document.getElementById("endDate").value;
-
-  // ✅ FORM VALIDATION
-  if (!startDate || !endDate) {
-    alert("❌ Please select both treatment start and end dates");
-    return;
-  }
-
-  if (new Date(startDate) >= new Date(endDate)) {
-    alert("❌ End date must be after start date");
-    return;
-  }
-
-  document.querySelectorAll("#treatmentTable tr").forEach(r=>{
-    const name = r.children[0].innerText.replace(/\s*\(Previous\)\s*/g, '').trim();
-    const price = +r.querySelector(".priceInput").value;
-    const days = +r.querySelector(".daysInput").value;
-    const amt = price * days;
-
-    if (days > 0) {
-      rows.push({
-        treatmentName: name,
-        pricePerDay: price,
-        days,
-        totalAmount: amt
-      });
-      total += amt;
-    }
-  });
-
-  if (!rows.length) {
-    alert("❌ Enter days for at least one treatment");
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API}/patient/${id}/treatments/add`,{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:`Bearer ${token}`
-      },
-      body: JSON.stringify({
-        treatments: rows,
-        totalAmount: total,
-        startDate: startDate,
-        endDate: endDate
-      })
-    });
-
-    if (!response.ok) {
-      alert("❌ Failed to save treatments");
-      return;
-    }
-
-    alert("✅ Treatments saved successfully");
-    document.getElementById("startDate").value = "";
-    document.getElementById("endDate").value = "";
-    
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    loadPatient();
-  } catch (error) {
-    console.error(error);
-    alert("❌ Error saving treatments. Check console.");
-  }
-}
-function downloadInvoice(patientId = id, invoiceNumber = "") {
+(()=>{
   const token = localStorage.getItem("token");
-  window.open(
-    `${API}/invoice/${patientId}?token=${token}&invoice=${invoiceNumber}`
-  );
-}
+  const id = new URLSearchParams(location.search).get("id");
+  if(!token){
+    alert("Session expired. Please login again.");
+    location.href="index.html";
+    return;
+  }
+  if(!id){
+    alert("Invalid patient");
+    location.href="dashboard.html";
+    return;
+  }
 
-function goBack(){
-  location.href="dashboard.html";
-}
+  const pname   = document.getElementById("pname");
+  const pphone  = document.getElementById("pphone");
+  const pstatus = document.getElementById("pstatus");
+  const totalEl = document.getElementById("total");
+  const paidEl  = document.getElementById("paid");
+  const dueEl   = document.getElementById("due");
+  const historyDiv = document.getElementById("history");
+  const table = document.getElementById("treatmentTable");
 
-async function deletePayment(paymentIndex){
-  if(confirm("⚠️ Are you sure you want to delete this payment?")){
-    try {
-      const response = await fetch(`${API}/patient/${id}/payment/${paymentIndex}`,{
-        method:"DELETE",
+  let treatmentPrices = {};
+  let treatmentData = {};
+
+  async function loadTreatmentMaster(){
+    try{
+      const res = await fetch(`${API}/treatments`,{
         headers:{ Authorization:`Bearer ${token}` }
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        alert(`❌ ${error.message || 'Failed to delete payment'}`);
-        return;
-      }
-
-      alert("✅ Payment deleted successfully");
-      loadPatient();
-    } catch (error) {
-      console.error(error);
-      alert("❌ Error deleting payment. Check console.");
+      if(!res.ok) throw new Error("Failed to load treatments");
+      const data = await res.json();
+      treatmentPrices = {};
+      treatmentData = {};
+      data.forEach(t => {
+        treatmentPrices[t.name] = t.pricePerDay;
+        treatmentData[t._id] = t;
+      });
+    }catch(err){
+      alert("Error loading treatments: " + (err.message || err));
     }
   }
-}
 
-async function deletePatient(){
-  if(confirm("⚠️ Are you sure you want to delete this patient? This action cannot be undone.")){
+  function recalc(){
+    let total = 0;
+    document.querySelectorAll("#treatmentTable tr").forEach(r=>{
+      const days = +r.querySelector(".daysInput").value || 0;
+      const price = +r.querySelector(".priceInput").value || 0;
+      const amt = days * price;
+      r.querySelector(".rowTotal").innerText = "₹" + amt;
+      total += amt;
+    });
+    document.getElementById("grandTotal").innerText = total;
+  }
+
+  async function loadPatient(){
+    try{
+      await loadTreatmentMaster();
+      // ...existing code for loading patient and rendering UI...
+      const res = await fetch(`${API}/patient/${id}`,{
+        headers:{ Authorization:`Bearer ${token}` }
+      });
+      const p = await res.json();
+      pname.innerText = p.name;
+      pphone.innerText = p.phone;
+      pstatus.innerText = p.status;
+      totalEl.innerText = p.totalAmount || 0;
+      paidEl.innerText = p.paidAmount || 0;
+      dueEl.innerText  = (p.totalAmount || 0) - (p.paidAmount || 0);
+      table.innerHTML = "";
+      let allTreatmentsToDisplay = [];
+      let treatmentNamesAdded = new Set();
+      if(p.treatmentHistory?.length){
+        const latestVisit = p.treatmentHistory[p.treatmentHistory.length - 1];
+        if(latestVisit && latestVisit.treatments){
+          latestVisit.treatments.forEach(t => {
+            const baseName = t.treatmentName.replace(/\s*\(Previous\)\s*/g, '').trim();
+            if(!treatmentNamesAdded.has(baseName)){
+              treatmentNamesAdded.add(baseName);
+              allTreatmentsToDisplay.push({
+                name: t.treatmentName,
+                price: t.pricePerDay,
+                days: t.days,
+                total: t.totalAmount,
+                isFromHistory: true
+              });
+            }
+          });
+        }
+      }
+      if(p.treatments && p.treatments.length > 0){
+        p.treatments.forEach(treatmentId => {
+          const treatment = treatmentData[treatmentId];
+          if(treatment){
+            if(!treatmentNamesAdded.has(treatment.name)){
+              treatmentNamesAdded.add(treatment.name);
+              allTreatmentsToDisplay.push({
+                name: treatment.name,
+                price: treatment.pricePerDay || 0,
+                days: 0,
+                total: 0,
+                isFromHistory: false
+              });
+            }
+          }
+        });
+      }
+      if(allTreatmentsToDisplay.length > 0){
+        allTreatmentsToDisplay.forEach((t, idx) => {
+          table.innerHTML += `
+            <tr>
+              <td>${t.name} ${t.isFromHistory ? '<small style="color:#999;">(Previous)</small>' : ''}</td>
+              <td><input type="number" class="priceInput" value="${t.price}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
+              <td><input type="number" class="daysInput" value="${t.days || 0}" min="0" step="1" oninput="recalc()" placeholder="0" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
+              <td class="rowTotal">₹${t.total || 0}</td>
+            </tr>
+          `;
+        });
+      } else {
+        Object.keys(treatmentPrices).forEach(name => {
+          const price = treatmentPrices[name];
+          table.innerHTML += `
+            <tr>
+              <td>${name}</td>
+              <td><input type="number" class="priceInput" value="${price || 0}" min="0" step="1" oninput="recalc()" style="width:80px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
+              <td><input type="number" class="daysInput" min="1" step="1" placeholder="0" oninput="recalc()" style="width:60px;padding:8px;border-radius:6px;border:1px solid #cbd5e1;"></td>
+              <td class="rowTotal">₹0</td>
+            </tr>
+          `;
+        });
+      }
+      recalc();
+      historyDiv.innerHTML = "";
+      p.paymentHistory?.forEach((h, idx)=>{
+        historyDiv.innerHTML += `
+          <div class="history-item" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              ${h.entryType} – ₹${h.amount}
+              ${h.paymentType ? `<br><small>💳 ${h.paymentType}</small>` : ''}
+              <br><small>${new Date(h.date).toLocaleString()}</small>
+            </div>
+            <button class="danger" style="padding:8px 12px; font-size:13px;" onclick="deletePayment(${idx})">🗑 Delete</button>
+          </div>`;
+      });
+    }catch(err){
+      alert("Error loading patient: " + (err.message || err));
+    }
+  }
+
+  async function savePayment(){
+    const amt = Number(document.getElementById("addPaid").value);
+    const paymentType = document.getElementById("paymentType").value;
+    const notes = document.getElementById("notes").value;
+    if (!paymentType) {
+      alert("❌ Please select a payment type");
+      return;
+    }
+    if (!amt || amt <= 0) {
+      alert("❌ Please enter a valid payment amount");
+      return;
+    }
+    if (amt > 100000) {
+      alert("❌ Payment amount cannot exceed ₹100,000");
+      return;
+    }
     try {
       const response = await fetch(`${API}/patient/${id}`,{
-        method:"DELETE",
-        headers:{ Authorization:`Bearer ${token}` }
+        method:"PUT",
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:`Bearer ${token}`
+        },
+        body:JSON.stringify({ 
+          addPaid: amt,
+          paymentType: paymentType,
+          notes
+        })
       });
-
       if (!response.ok) {
-        alert("❌ Failed to delete patient");
+        const error = await response.json();
+        alert(`❌ ${error.message || 'Failed to save payment'}`);
         return;
       }
-
-      alert("✅ Patient deleted successfully");
-      location.href="dashboard.html";
+      alert("✅ Payment saved successfully");
+      document.getElementById("addPaid").value = "";
+      document.getElementById("paymentType").value = "";
+      document.getElementById("notes").value = "";
+      loadPatient();
     } catch (error) {
-      console.error(error);
-      alert("❌ Error deleting patient. Check console.");
+      alert("❌ Error saving payment: " + (error && error.message ? error.message : error));
     }
   }
-}
-async function loadInvoiceHistory(patientId) {
-  const res = await fetch(
-    `${API}/patient/${patientId}/invoices`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
 
-  const invoices = await res.json();
-  const box = document.getElementById("invoiceHistory");
-
-  if (!invoices.length) {
-    box.innerHTML = "<p>No invoices generated yet</p>";
-    return;
+  async function saveTreatments(){
+    let total=0, rows=[];
+    const startDate = document.getElementById("startDate").value;
+    const endDate   = document.getElementById("endDate").value;
+    if (!startDate || !endDate) {
+      alert("❌ Please select both treatment start and end dates");
+      return;
+    }
+    if (new Date(startDate) >= new Date(endDate)) {
+      alert("❌ End date must be after start date");
+      return;
+    }
+    document.querySelectorAll("#treatmentTable tr").forEach(r=>{
+      const name = r.children[0].innerText.replace(/\s*\(Previous\)\s*/g, '').trim();
+      const price = +r.querySelector(".priceInput").value;
+      const days = +r.querySelector(".daysInput").value;
+      const amt = price * days;
+      if (days > 0) {
+        rows.push({
+          treatmentName: name,
+          pricePerDay: price,
+          days,
+          totalAmount: amt
+        });
+        total += amt;
+      }
+    });
+    if (!rows.length) {
+      alert("❌ Enter days for at least one treatment");
+      return;
+    }
+    try {
+      const response = await fetch(`${API}/patient/${id}/treatments/add`,{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:`Bearer ${token}`
+        },
+        body: JSON.stringify({
+          treatments: rows,
+          totalAmount: total,
+          startDate: startDate,
+          endDate: endDate
+        })
+      });
+      if (!response.ok) {
+        alert("❌ Failed to save treatments");
+        return;
+      }
+      alert("✅ Treatments saved successfully");
+      document.getElementById("startDate").value = "";
+      document.getElementById("endDate").value = "";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      loadPatient();
+    } catch (error) {
+      alert("❌ Error saving treatments: " + (error && error.message ? error.message : error));
+    }
   }
 
-box.innerHTML = invoices.map(inv => `
-  <div style="padding:10px;border-bottom:1px solid #e5e7eb">
-    <b>${inv.invoiceNumber}</b><br>
+  function downloadInvoice(patientId = id, invoiceNumber = "") {
+    try{
+      const token = localStorage.getItem("token");
+      window.open(
+        `${API}/invoice/${patientId}?token=${token}&invoice=${invoiceNumber}`
+      );
+    }catch(err){
+      alert("Error downloading invoice: " + (err.message || err));
+    }
+  }
 
-    🗓 Start: ${inv.treatmentStartDate}<br>
-    🗓 End: ${inv.treatmentEndDate}<br>
+  function goBack(){
+    location.href="dashboard.html";
+  }
 
-    💰 Total: ₹${inv.totalAmount} |
-    Paid: ₹${inv.paidAmount} |
-    Due: ₹${inv.dueAmount}<br><br>
-
-    <button onclick="downloadInvoice('${patientId}', '${inv.invoiceNumber}')">
-      📄 Download
-    </button>
-
-    <button
-      style="margin-left:8px;background:#dc2626;color:white"
-      onclick="deleteInvoice('${patientId}', '${inv.invoiceNumber}')">
-      🗑 Delete
-    </button>
-  </div>
-`).join("");
-}
-async function deleteInvoice(patientId, invoiceNumber) {
-  if (!confirm("Delete this invoice permanently?")) return;
-
-  await fetch(
-    `${API}/patient/${patientId}/invoice/${invoiceNumber}`,
-    {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`
+  async function deletePayment(paymentIndex){
+    if(confirm("⚠️ Are you sure you want to delete this payment?")){
+      try {
+        const response = await fetch(`${API}/patient/${id}/payment/${paymentIndex}`,{
+          method:"DELETE",
+          headers:{ Authorization:`Bearer ${token}` }
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          alert(`❌ ${error.message || 'Failed to delete payment'}`);
+          return;
+        }
+        alert("✅ Payment deleted successfully");
+        loadPatient();
+      } catch (error) {
+        alert("❌ Error deleting payment: " + (error && error.message ? error.message : error));
       }
     }
-  );
+  }
 
-  alert("Invoice deleted");
-  loadInvoiceHistory(patientId);
-}
+  async function deletePatient(){
+    if(confirm("⚠️ Are you sure you want to delete this patient? This action cannot be undone.")){
+      try {
+        const response = await fetch(`${API}/patient/${id}`,{
+          method:"DELETE",
+          headers:{ Authorization:`Bearer ${token}` }
+        });
+        if (!response.ok) {
+          alert("❌ Failed to delete patient");
+          return;
+        }
+        alert("✅ Patient deleted successfully");
+        location.href="dashboard.html";
+      } catch (error) {
+        alert("❌ Error deleting patient: " + (error && error.message ? error.message : error));
+      }
+    }
+  }
 
-loadInvoiceHistory(id);
+  async function loadInvoiceHistory(patientId) {
+    try{
+      const res = await fetch(
+        `${API}/patient/${patientId}/invoices`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const invoices = await res.json();
+      const box = document.getElementById("invoiceHistory");
+      if (!invoices.length) {
+        box.innerHTML = "<p>No invoices generated yet</p>";
+        return;
+      }
+      box.innerHTML = invoices.map(inv => `
+        <div style="padding:10px;border-bottom:1px solid #e5e7eb">
+          <b>${inv.invoiceNumber}</b><br>
+          🗓 Start: ${inv.treatmentStartDate}<br>
+          🗓 End: ${inv.treatmentEndDate}<br>
+          💰 Total: ₹${inv.totalAmount} |
+          Paid: ₹${inv.paidAmount} |
+          Due: ₹${inv.dueAmount}<br><br>
+          <button onclick="downloadInvoice('${patientId}', '${inv.invoiceNumber}')">
+            📄 Download
+          </button>
+          <button
+            style="margin-left:8px;background:#dc2626;color:white"
+            onclick="deleteInvoice('${patientId}', '${inv.invoiceNumber}')">
+            🗑 Delete
+          </button>
+        </div>
+      `).join("");
+    }catch(err){
+      alert("Error loading invoice history: " + (err.message || err));
+    }
+  }
 
-loadPatient();
-</script>
+  async function deleteInvoice(patientId, invoiceNumber) {
+    if (!confirm("Delete this invoice permanently?")) return;
+    try{
+      await fetch(
+        `${API}/patient/${patientId}/invoice/${invoiceNumber}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      alert("Invoice deleted");
+      loadInvoiceHistory(patientId);
+    }catch(err){
+      alert("Error deleting invoice: " + (err.message || err));
+    }
+  }
 
+  // Expose for HTML event handlers
+  window.saveTreatments = saveTreatments;
+  window.downloadInvoice = downloadInvoice;
+  window.goBack = goBack;
+  window.savePayment = savePayment;
+  window.deletePayment = deletePayment;
+  window.deletePatient = deletePatient;
+  window.deleteInvoice = deleteInvoice;
+
+  loadInvoiceHistory(id);
+  loadPatient();
+})();
 </body>
 </html>

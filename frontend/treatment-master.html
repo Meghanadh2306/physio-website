@@ -126,27 +126,38 @@ td{
   }
 
   async function loadTreatments(){
-    const res = await fetch(`${API}/treatments`,{
-      headers:{ Authorization:`Bearer ${token}` }
-    });
-
-    if(!res.ok){
-      alert("Failed to load treatments");
-      return;
+    list.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#888;">Loading treatments...</td></tr>';
+    try {
+      const res = await fetch(`${API}/treatments`,{
+        headers:{ Authorization:`Bearer ${token}` }
+      });
+      if(!res.ok){
+        let msg = "Failed to load treatments";
+        try { const err = await res.json(); if(err.message) msg = err.message; } catch {}
+        alert(msg);
+        list.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#dc2626;">'+msg+'</td></tr>';
+        return;
+      }
+      const data = await res.json();
+      if(!Array.isArray(data) || data.length === 0) {
+        list.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#888;">No treatments found.</td></tr>';
+        return;
+      }
+      list.innerHTML = data.map(t=>`
+        <tr>
+          <td><b>${t.name}</b> <span class="badge">Active</span></td>
+          <td>
+            <button class="delete-btn"
+              onclick="deleteTreatment('${t._id}')">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `).join("");
+    } catch (error) {
+      alert("Network error: " + (error.message || error));
+      list.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#dc2626;">Network error loading treatments.</td></tr>';
     }
-
-    const data = await res.json();
-    list.innerHTML = data.map(t=>`
-      <tr>
-        <td><b>${t.name}</b> <span class="badge">Active</span></td>
-        <td>
-          <button class="delete-btn"
-            onclick="deleteTreatment('${t._id}')">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        </td>
-      </tr>
-    `).join("");
   }
 
   async function saveTreatment(){
@@ -175,8 +186,9 @@ td{
       });
 
       if(!res.ok){
-        const error = await res.json();
-        alert(error.message || "❌ Treatment already exists");
+        let msg = "❌ Treatment already exists";
+        try { const error = await res.json(); if(error.message) msg = error.message; } catch {}
+        alert(msg);
         return;
       }
 
@@ -184,8 +196,7 @@ td{
       treatmentName.value="";
       loadTreatments();
     } catch (error) {
-      console.error(error);
-      alert("❌ Error saving treatment. Check console.");
+      alert("❌ Network error saving treatment: " + (error.message || error));
     }
   }
 
@@ -199,15 +210,16 @@ td{
       });
 
       if(!res.ok) {
-        alert("❌ Failed to delete treatment");
+        let msg = "❌ Failed to delete treatment";
+        try { const error = await res.json(); if(error.message) msg = error.message; } catch {}
+        alert(msg);
         return;
       }
 
       alert("✅ Treatment deleted successfully");
       loadTreatments();
     } catch (error) {
-      console.error(error);
-      alert("❌ Error deleting treatment. Check console.");
+      alert("❌ Network error deleting treatment: " + (error.message || error));
     }
   }
 

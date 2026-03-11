@@ -156,69 +156,90 @@ input:focus{
 </div>
 
 <script>
-const token = localStorage.getItem("token");
-if(!token) location.href="index.html";
-
-/* LOAD DOCTORS */
-async function loadDoctors(){
-  const res = await fetch(`${API}/doctors`,{
-    headers:{ Authorization:`Bearer ${token}` }
-  });
-  const doctors = await res.json();
-
-  doctorList.innerHTML = doctors.map(d=>`
-    <div class="item">
-      <b>${d.name}</b>
-      <button class="delete" onclick="deleteDoctor('${d._id}')">
-        <i class="fa-solid fa-trash"></i>
-      </button>
-    </div>
-  `).join("");
-}
-
-/* ADD DOCTOR */
-async function addDoctor(){
-  const doctorName = document.getElementById("name").value.trim();
-
-  if(!doctorName){
-    alert("Doctor name is required");
+(()=>{
+  const token = localStorage.getItem("token");
+  if(!token){
+    alert("Session expired. Please login again.");
+    location.href="index.html";
     return;
   }
 
-  await fetch(`${API}/doctors`,{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      Authorization:`Bearer ${token}`
-    },
-    body: JSON.stringify({
-      name: doctorName
-    })
-  });
+  async function loadDoctors(){
+    try{
+      const res = await fetch(`${API}/doctors`,{
+        headers:{ Authorization:`Bearer ${token}` }
+      });
+      if(!res.ok) throw new Error("Failed to load doctors");
+      const doctors = await res.json();
+      doctorList.innerHTML = doctors.map(d=>`
+        <div class="item">
+          <b>${d.name}</b>
+          <button class="delete" onclick="deleteDoctor('${d._id}')">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      `).join("");
+    }catch(err){
+      alert("Error loading doctors: " + (err.message || err));
+    }
+  }
 
-  document.getElementById("name").value = "";
+  async function addDoctor(){
+    const doctorName = document.getElementById("name").value.trim();
+    if(!doctorName){
+      alert("Doctor name is required");
+      return;
+    }
+    try{
+      const res = await fetch(`${API}/doctors`,{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:`Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: doctorName
+        })
+      });
+      if(!res.ok){
+        const data = await res.json().catch(()=>({}));
+        throw new Error(data.message || "Failed to add doctor");
+      }
+      document.getElementById("name").value = "";
+      loadDoctors();
+    }catch(err){
+      alert("Error adding doctor: " + (err.message || err));
+    }
+  }
+
+  async function deleteDoctor(id){
+    if(!confirm("Delete this doctor?")) return;
+    try{
+      const res = await fetch(`${API}/doctors/${id}`,{
+        method:"DELETE",
+        headers:{ Authorization:`Bearer ${token}` }
+      });
+      if(!res.ok){
+        const data = await res.json().catch(()=>({}));
+        throw new Error(data.message || "Failed to delete doctor");
+      }
+      loadDoctors();
+    }catch(err){
+      alert("Error deleting doctor: " + (err.message || err));
+    }
+  }
+
+  function goBack(){
+    location.href="dashboard.html";
+  }
+
+  // Expose functions for HTML event handlers
+  window.addDoctor = addDoctor;
+  window.deleteDoctor = deleteDoctor;
+  window.goBack = goBack;
+
   loadDoctors();
-}
-
-
-
-/* DELETE DOCTOR */
-async function deleteDoctor(id){
-  if(!confirm("Delete this doctor?")) return;
-
-  await fetch(`${API}/doctors/${id}`,{
-    method:"DELETE",
-    headers:{ Authorization:`Bearer ${token}` }
-  });
-
-  loadDoctors();
-}
-
-function goBack(){
-  location.href="dashboard.html";
-}
-
-loadDoctors();
+})();
 </script>
 
 </body>

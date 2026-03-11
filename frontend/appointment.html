@@ -202,90 +202,98 @@ button{
 </div>
 
 <script>
-const token = localStorage.getItem("token");
-if (!token) {
-  alert("Session expired. Please login again.");
-  location.href = "index.html";
-}
-
-/* LOAD TREATMENTS */
-async function loadTreatments(){
-  const res = await fetch(`${API}/treatments`, {
-    headers:{ Authorization:`Bearer ${token}` }
-  });
-  const data = await res.json();
-  document.getElementById("treatments").innerHTML =
-    data.map(t => `
-      <label>
-        <input type="checkbox" value="${t.name}">
-        <span>${t.name}</span>
-      </label>
-    `).join("");
-}
-
-/* LOAD DOCTORS */
-async function loadDoctors(){
-  const res = await fetch(`${API}/doctors`, {
-    headers:{ Authorization:`Bearer ${token}` }
-  });
-  const doctors = await res.json();
-  document.getElementById("recommendedDoctor").innerHTML =
-    `<option value="">Select Doctor</option>` +
-    doctors.map(d => `<option value="${d.name}">${d.name}</option>`).join("");
-}
-
-loadTreatments();
-loadDoctors();
-
-/* SUBMIT */
-document.getElementById("bookForm").addEventListener("submit", async e => {
-  e.preventDefault();
-
-  const treatments = [...document.querySelectorAll('#treatments input:checked')]
-    .map(cb => cb.value);
-
-  const data = {
-    name: document.getElementById("name").value.trim(),
-    age: Number(document.getElementById("age").value),
-    gender: document.querySelector('input[name="gender"]:checked')?.value,
-    address: document.getElementById("address").value.trim(),
-    phone: document.getElementById("phone").value.trim(),
-    appointmentDate: document.getElementById("appointment_date").value,
-    treatments,
-    problem: document.getElementById("problem").value.trim(),
-    recommendedDoctor: document.getElementById("recommendedDoctor").value
-  };
-
-  if(!data.name || data.name.length < 3) return alert("❌ Name must be at least 3 characters");
-  if(!/^\d{10}$/.test(data.phone)) return alert("❌ Phone must be 10 digits");
-  if(!data.gender) return alert("❌ Select gender");
-  if(treatments.length === 0) return alert("❌ Select at least one treatment");
-  if(!data.recommendedDoctor) return alert("❌ Select a doctor");
-
-  try {
-    const res = await fetch(`${API}/patients`, {
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:`Bearer ${token}`
-      },
-      body:JSON.stringify(data)
-    });
-
-    const result = await res.json();
-    if(!res.ok) return alert(`❌ ${result.message || "Booking failed"}`);
-
-    alert("✅ Appointment booked successfully");
-    location.href = "dashboard.html";
-  } catch(err) {
-    console.error("Error:", err);
-    alert(`❌ Error: ${err.message}`);
+(()=>{
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Session expired. Please login again.");
+    location.href = "index.html";
+    return;
   }
-});
 
-function goBack(){
-  location.href="dashboard.html";
-}
+  async function loadTreatments(){
+    try{
+      const res = await fetch(`${API}/treatments`, {
+        headers:{ Authorization:`Bearer ${token}` }
+      });
+      if(!res.ok) throw new Error("Failed to load treatments");
+      const data = await res.json();
+      document.getElementById("treatments").innerHTML =
+        data.map(t => `
+          <label>
+            <input type="checkbox" value="${t.name}">
+            <span>${t.name}</span>
+          </label>
+        `).join("");
+    }catch(err){
+      alert("Error loading treatments: " + (err.message || err));
+    }
+  }
+
+  async function loadDoctors(){
+    try{
+      const res = await fetch(`${API}/doctors`, {
+        headers:{ Authorization:`Bearer ${token}` }
+      });
+      if(!res.ok) throw new Error("Failed to load doctors");
+      const doctors = await res.json();
+      document.getElementById("recommendedDoctor").innerHTML =
+        `<option value="">Select Doctor</option>` +
+        doctors.map(d => `<option value="${d.name}">${d.name}</option>`).join("");
+    }catch(err){
+      alert("Error loading doctors: " + (err.message || err));
+    }
+  }
+
+  async function submitForm(e){
+    e.preventDefault();
+    const treatments = [...document.querySelectorAll('#treatments input:checked')]
+      .map(cb => cb.value);
+    const data = {
+      name: document.getElementById("name").value.trim(),
+      age: Number(document.getElementById("age").value),
+      gender: document.querySelector('input[name="gender"]:checked')?.value,
+      address: document.getElementById("address").value.trim(),
+      phone: document.getElementById("phone").value.trim(),
+      appointmentDate: document.getElementById("appointment_date").value,
+      treatments,
+      problem: document.getElementById("problem").value.trim(),
+      recommendedDoctor: document.getElementById("recommendedDoctor").value
+    };
+    if(!data.name || data.name.length < 3) return alert("❌ Name must be at least 3 characters");
+    if(!/^\d{10}$/.test(data.phone)) return alert("❌ Phone must be 10 digits");
+    if(!data.gender) return alert("❌ Select gender");
+    if(treatments.length === 0) return alert("❌ Select at least one treatment");
+    if(!data.recommendedDoctor) return alert("❌ Select a doctor");
+    try {
+      const res = await fetch(`${API}/patients`, {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:`Bearer ${token}`
+        },
+        body:JSON.stringify(data)
+      });
+      const result = await res.json();
+      if(!res.ok) return alert(`❌ ${result.message || "Booking failed"}`);
+      alert("✅ Appointment booked successfully");
+      location.href = "dashboard.html";
+    } catch(err) {
+      console.error("Error:", err);
+      alert(`❌ Error: ${err.message || err}`);
+    }
+  }
+
+  function goBack(){
+    location.href="dashboard.html";
+  }
+
+  // Expose for HTML event handlers
+  window.goBack = goBack;
+
+  loadTreatments();
+  loadDoctors();
+  document.getElementById("bookForm").addEventListener("submit", submitForm);
+})();
 </script>
 
 </body>
