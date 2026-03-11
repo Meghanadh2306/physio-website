@@ -616,32 +616,45 @@ body.dark .add-treatment-row select{
 
 <!-- FILTER -->
 <div class="filter">
-  <input
-    id="searchInput"
-    placeholder="Search name / phone"
-  >
-
-  <select id="statusSelect">
-    <option value="">All Status</option>
-    <option value="Ongoing">Ongoing</option>
-    <option value="Completed">Completed</option>
-  </select>
-
-  <select id="doctorSelect">
-    <option value="">All Doctors</option>
-  </select>
-
-  <!-- New Month-Year Filter -->
-  <input
-    type="month"
-    id="monthYearInput"
-    style="padding:12px;border-radius:10px;border:1px solid #ccc;"
-    title="Filter by Appointment Month & Year"
-  >
-
-  <button onclick="loadPatients()">
-    <i class="fa-solid fa-magnifying-glass"></i> Search
-  </button>
+  <div style="display:flex;flex-direction:column;gap:4px;">
+    <label for="searchInput" style="font-size:12px;color:#888;margin-left:4px;">Name/Phone</label>
+    <input
+      id="searchInput"
+      placeholder="Search name / phone"
+      style="min-width:160px;"
+    >
+  </div>
+  <div style="display:flex;flex-direction:column;gap:4px;">
+    <label for="statusSelect" style="font-size:12px;color:#888;margin-left:4px;">Status</label>
+    <select id="statusSelect">
+      <option value="">All Status</option>
+      <option value="Ongoing">Ongoing</option>
+      <option value="Completed">Completed</option>
+    </select>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:4px;">
+    <label for="doctorSelect" style="font-size:12px;color:#888;margin-left:4px;">Doctor</label>
+    <select id="doctorSelect">
+      <option value="">All Doctors</option>
+    </select>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:4px;">
+    <label for="monthYearInput" style="font-size:12px;color:#888;margin-left:4px;">Month & Year</label>
+    <input
+      type="month"
+      id="monthYearInput"
+      style="padding:12px;border-radius:10px;border:1px solid #ccc;min-width:140px;"
+      title="Filter by Appointment Month & Year"
+    >
+  </div>
+  <div style="display:flex;flex-direction:row;align-items:end;gap:8px;">
+    <button onclick="loadPatients()" title="Search" style="min-width:90px;">
+      <i class="fa-solid fa-magnifying-glass"></i> Search
+    </button>
+    <button onclick="clearFilters()" title="Clear Filters" style="background:#e5e7eb;color:#374151;min-width:90px;">
+      <i class="fa-solid fa-xmark"></i> Clear
+    </button>
+  </div>
 </div>
 
 
@@ -746,6 +759,13 @@ body.dark .add-treatment-row select{
 </div>
 
 <script>
+function clearFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('statusSelect').value = '';
+  document.getElementById('doctorSelect').value = '';
+  document.getElementById('monthYearInput').value = '';
+  loadPatients();
+}
 const token=localStorage.getItem("token");
 if(!token) location.href="index.html";
 
