@@ -115,116 +115,118 @@ td{
 </div>
 
 <script>
-const token = localStorage.getItem("token");
-const list = document.getElementById("list");
+(() => {
+  const token = localStorage.getItem("token");
+  const list = document.getElementById("list");
 
-if(!token){
-  alert("Session expired");
-location.href="index.html";
-}
-
-/* LOAD */
-async function loadTreatments(){
-  const res = await fetch(`${API}/treatments`,{
-    headers:{ Authorization:`Bearer ${token}` }
-  });
-
-  if(!res.ok){
-    alert("Failed to load treatments");
+  if(!token){
+    alert("Session expired");
+    location.href="index.html";
     return;
   }
 
-  const data = await res.json();
-  list.innerHTML = data.map(t=>`
-    <tr>
-      <td><b>${t.name}</b> <span class="badge">Active</span></td>
-      <td>
-        <button class="delete-btn"
-          onclick="deleteTreatment('${t._id}')">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      </td>
-    </tr>
-  `).join("");
-}
-
-/* SAVE */
-async function saveTreatment(){
-  const name = treatmentName.value.trim();
-
-  // ✅ FORM VALIDATIONS
-  if(!name || !name.length){
-    alert("❌ Please enter treatment name");
-    return;
-  }
-  if(name.length < 3) {
-    alert("❌ Treatment name must be at least 3 characters");
-    return;
-  }
-
-  try {
+  async function loadTreatments(){
     const res = await fetch(`${API}/treatments`,{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:`Bearer ${token}`
-      },
-      body:JSON.stringify({
-        name: name
-      })
-    });
-
-    if(!res.ok){
-      const error = await res.json();
-      alert(error.message || "❌ Treatment already exists");
-      return;
-    }
-
-    alert("✅ Treatment added successfully");
-    treatmentName.value="";
-    loadTreatments();
-  } catch (error) {
-    console.error(error);
-    alert("❌ Error saving treatment. Check console.");
-  }
-
-}
-
-/* DELETE */
-async function deleteTreatment(id){
-  if(!confirm("⚠️ Are you sure you want to delete this treatment? This action cannot be undone.")) return;
-
-  try {
-    const res = await fetch(`${API}/treatments/${id}`,{
-      method:"DELETE",
       headers:{ Authorization:`Bearer ${token}` }
     });
 
-    if(!res.ok) {
-      alert("❌ Failed to delete treatment");
+    if(!res.ok){
+      alert("Failed to load treatments");
       return;
     }
 
-    alert("✅ Treatment deleted successfully");
-    loadTreatments();
-  } catch (error) {
-    console.error(error);
-    alert("❌ Error deleting treatment. Check console.");
+    const data = await res.json();
+    list.innerHTML = data.map(t=>`
+      <tr>
+        <td><b>${t.name}</b> <span class="badge">Active</span></td>
+        <td>
+          <button class="delete-btn"
+            onclick="deleteTreatment('${t._id}')">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `).join("");
   }
-}
 
-function goBack(){
-  alert("Going back to dashboard...");
-  try {
-    window.location.assign("dashboard.html");
-  } catch (e) {
-    window.location.href = "dashboard.html";
+  async function saveTreatment(){
+    const name = treatmentName.value.trim();
+
+    // ✅ FORM VALIDATIONS
+    if(!name || !name.length){
+      alert("❌ Please enter treatment name");
+      return;
+    }
+    if(name.length < 3) {
+      alert("❌ Treatment name must be at least 3 characters");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/treatments`,{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:`Bearer ${token}`
+        },
+        body:JSON.stringify({
+          name: name
+        })
+      });
+
+      if(!res.ok){
+        const error = await res.json();
+        alert(error.message || "❌ Treatment already exists");
+        return;
+      }
+
+      alert("✅ Treatment added successfully");
+      treatmentName.value="";
+      loadTreatments();
+    } catch (error) {
+      console.error(error);
+      alert("❌ Error saving treatment. Check console.");
+    }
   }
-}
 
+  async function deleteTreatment(id){
+    if(!confirm("⚠️ Are you sure you want to delete this treatment? This action cannot be undone.")) return;
 
-// Use top-level await for async call
-await loadTreatments();
+    try {
+      const res = await fetch(`${API}/treatments/${id}`,{
+        method:"DELETE",
+        headers:{ Authorization:`Bearer ${token}` }
+      });
+
+      if(!res.ok) {
+        alert("❌ Failed to delete treatment");
+        return;
+      }
+
+      alert("✅ Treatment deleted successfully");
+      loadTreatments();
+    } catch (error) {
+      console.error(error);
+      alert("❌ Error deleting treatment. Check console.");
+    }
+  }
+
+  function goBack(){
+    alert("Going back to dashboard...");
+    try {
+      window.location.assign("dashboard.html");
+    } catch (e) {
+      window.location.href = "dashboard.html";
+    }
+  }
+
+  // Expose functions to global scope for button onclick
+  window.saveTreatment = saveTreatment;
+  window.deleteTreatment = deleteTreatment;
+  window.goBack = goBack;
+
+  loadTreatments();
+})();
 </script>
 
 </body>
