@@ -631,6 +631,14 @@ body.dark .add-treatment-row select{
     <option value="">All Doctors</option>
   </select>
 
+  <!-- New Month-Year Filter -->
+  <input
+    type="month"
+    id="monthYearInput"
+    style="padding:12px;border-radius:10px;border:1px solid #ccc;"
+    title="Filter by Appointment Month & Year"
+  >
+
   <button onclick="loadPatients()">
     <i class="fa-solid fa-magnifying-glass"></i> Search
   </button>
@@ -745,8 +753,25 @@ let all=[];
 let currentEditPatientId = null;
 
 async function loadPatients(){
+  // Get month-year value
+  const monthYear = document.getElementById("monthYearInput")?.value;
+  let month = "", year = "";
+  if(monthYear){
+    [year, month] = monthYear.split("-");
+  }
+
+  // Build query string
+  const params = new URLSearchParams();
+  params.set("search", searchInput.value);
+  params.set("status", statusSelect.value);
+  params.set("doctor", doctorSelect.value);
+  if(month && year){
+    params.set("month", month);
+    params.set("year", year);
+  }
+
   const res=await fetch(
-    `${API}/patients?search=${searchInput.value}&status=${statusSelect.value}&doctor=${doctorSelect.value}`,
+    `${API}/patients?${params.toString()}`,
     { headers:{Authorization:`Bearer ${token}`} }
   );
   all=await res.json();
