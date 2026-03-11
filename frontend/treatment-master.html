@@ -214,10 +214,10 @@ async function deleteTreatment(id){
 }
 
 function goBack(){
+  alert("Going back to dashboard...");
   try {
     window.location.assign("dashboard.html");
   } catch (e) {
-    // fallback for very old browsers
     window.location.href = "dashboard.html";
   }
 }
