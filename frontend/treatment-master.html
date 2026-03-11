@@ -95,6 +95,7 @@ td{
 <!-- ADD NEW -->
 <div class="form">
   <input id="treatmentName" placeholder="Treatment Name">
+  <input id="treatmentPrice" class="price-input" type="number" min="0" placeholder="Price/Day">
   <button class="save-btn" onclick="saveTreatment()">
     <i class="fa-solid fa-plus"></i> Save
   </button>
@@ -104,6 +105,7 @@ td{
   <thead>
     <tr>
       <th>Treatment</th>
+      <th>Price/Day</th>
       <th>Action</th>
     </tr>
   </thead>
@@ -139,6 +141,9 @@ async function loadTreatments(){
     <tr>
       <td><b>${t.name}</b> <span class="badge">Active</span></td>
       <td>
+        <span style="font-weight:600;color:#0f766e;">${t.pricePerDay || 0}</span>
+      </td>
+      <td>
         <button class="delete-btn"
           onclick="deleteTreatment('${t._id}')">
           <i class="fa-solid fa-trash"></i>
@@ -151,15 +156,19 @@ async function loadTreatments(){
 /* SAVE */
 async function saveTreatment(){
   const name = treatmentName.value.trim();
+  const price = Number(treatmentPrice.value) || 0;
 
   // ✅ FORM VALIDATIONS
   if(!name || !name.length){
     alert("❌ Please enter treatment name");
     return;
   }
-
   if(name.length < 3) {
     alert("❌ Treatment name must be at least 3 characters");
+    return;
+  }
+  if(price < 0) {
+    alert("❌ Price cannot be negative");
     return;
   }
 
@@ -172,7 +181,7 @@ async function saveTreatment(){
       },
       body:JSON.stringify({
         name: name,
-        pricePerDay: 0
+        pricePerDay: price
       })
     });
 
@@ -184,11 +193,13 @@ async function saveTreatment(){
 
     alert("✅ Treatment added successfully");
     treatmentName.value="";
+    treatmentPrice.value="";
     loadTreatments();
   } catch (error) {
     console.error(error);
     alert("❌ Error saving treatment. Check console.");
   }
+
 }
 
 /* DELETE */

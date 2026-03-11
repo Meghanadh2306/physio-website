@@ -525,7 +525,17 @@ app.get("/treatments", auth, async (req, res) => {
 });
 
 app.post("/treatments", auth, async (req, res) => {
-  res.json(await Treatment.create(req.body));
+  try {
+    // Prevent duplicate names (case-insensitive)
+    const existing = await Treatment.findOne({ name: { $regex: `^${req.body.name}$`, $options: 'i' } });
+    if (existing) {
+      return res.status(400).json({ message: "Treatment already exists" });
+    }
+    const treatment = await Treatment.create(req.body);
+    res.json(treatment);
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Failed to create treatment" });
+  }
 });
 
 app.delete("/treatments/:id", auth, async (req, res) => {
