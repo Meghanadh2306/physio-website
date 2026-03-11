@@ -1,11 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Flatpickr for modern month/year picker -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
 <meta charset="UTF-8">
 <title>Hospital Dashboard</title>
 <script src="config.js"></script>
@@ -646,19 +642,27 @@ body.dark .add-treatment-row select{
     </select>
   </div>
   <div style="display:flex;flex-direction:column;gap:4px;">
-    <label for="monthYearInput" style="font-size:13px;color:var(--primary);margin-left:4px;font-weight:600;">Month & Year</label>
-    <div style="position:relative;">
-      <input
-        type="text"
-        id="monthYearInput"
-        readonly
-        style="padding:14px 16px 14px 44px;border-radius:12px;border:1.5px solid #b2dfdb;min-width:170px;font-size:16px;background:var(--bg);color:var(--text);transition:border 0.2s;outline:none;cursor:pointer;"
-        title="Filter by Appointment Month & Year"
-        autocomplete="off"
-      >
-      <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#14b8a6;font-size:18px;pointer-events:none;">
-        <i class="fa-regular fa-calendar"></i>
-      </span>
+    <label for="monthSelect" style="font-size:13px;color:var(--primary);margin-left:4px;font-weight:600;">Month & Year</label>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select id="monthSelect" style="font-size:16px;padding:14px 12px;border-radius:12px;border:1.5px solid #b2dfdb;background:var(--bg);color:var(--text);min-width:110px;">
+        <option value="">Month</option>
+        <option value="01">January</option>
+        <option value="02">February</option>
+        <option value="03">March</option>
+        <option value="04">April</option>
+        <option value="05">May</option>
+        <option value="06">June</option>
+        <option value="07">July</option>
+        <option value="08">August</option>
+        <option value="09">September</option>
+        <option value="10">October</option>
+        <option value="11">November</option>
+        <option value="12">December</option>
+      </select>
+      <select id="yearSelect" style="font-size:16px;padding:14px 12px;border-radius:12px;border:1.5px solid #b2dfdb;background:var(--bg);color:var(--text);min-width:90px;">
+        <option value="">Year</option>
+      </select>
+      <span style="color:#14b8a6;font-size:18px;margin-left:4px;"><i class="fa-regular fa-calendar"></i></span>
     </div>
   </div>
   <div style="grid-column:1/-1;display:flex;justify-content:center;align-items:center;margin-top:12px;">
@@ -793,39 +797,25 @@ body.dark .add-treatment-row select{
 
 <script>
 
-// Initialize flatpickr for month/year input
+// Populate year dropdown (current year +/- 5)
 document.addEventListener('DOMContentLoaded', function() {
-  if (window.flatpickr) {
-    flatpickr("#monthYearInput", {
-      plugins: [new monthSelectPlugin({
-        shorthand: true,
-        dateFormat: "F Y",
-        altFormat: "F Y",
-        theme: document.body.classList.contains('dark') ? 'dark' : 'material_blue',
-      })],
-      allowInput: false,
-      wrap: false,
-      altInput: false,
-      onOpen: function(selectedDates, dateStr, instance) {
-        // Switch theme on open if needed
-        instance.set('theme', document.body.classList.contains('dark') ? 'dark' : 'material_blue');
-      },
-      onChange: function(selectedDates, dateStr, instance) {
-        // Optionally auto-search on change
-        // loadPatients();
-      }
-    });
+  const yearSel = document.getElementById('yearSelect');
+  if (yearSel) {
+    const cy = new Date().getFullYear();
+    for(let i=cy+5;i>=cy-5;i--) {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = i;
+      yearSel.appendChild(opt);
+    }
   }
 });
 
-// Flatpickr monthSelect plugin loader
-if (!window.monthSelectPlugin) {
-  var script = document.createElement('script');
-  script.src = 'https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/monthSelect/index.js';
-  script.onload = function() {
-    // Plugin loaded
-  };
-  document.head.appendChild(script);
+// Helper to get month/year from selects for loadPatients
+function getSelectedMonthYear() {
+  const month = document.getElementById('monthSelect').value;
+  const year = document.getElementById('yearSelect').value;
+  return { month, year };
 }
 
 const token=localStorage.getItem("token");
@@ -835,12 +825,9 @@ let all=[];
 let currentEditPatientId = null;
 
 async function loadPatients(){
-  // Get month-year value
-  const monthYear = document.getElementById("monthYearInput")?.value;
-  let month = "", year = "";
-  if(monthYear && monthYear.includes("-")){
-    [year, month] = monthYear.split("-");
-  }
+
+  // Get month and year from custom selects
+  const { month, year } = getSelectedMonthYear();
 
   // Build query string
   const params = new URLSearchParams();
