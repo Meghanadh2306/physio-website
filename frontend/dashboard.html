@@ -643,13 +643,18 @@ body.dark .add-treatment-row select{
     <input
       type="month"
       id="monthYearInput"
-      style="padding:12px;border-radius:10px;border:1px solid #ccc;min-width:140px;"
+      style="padding:14px 18px;border-radius:14px;border:2px solid #0f766e;min-width:170px;font-size:16px;background:#f8fafc;color:#222;box-shadow:0 2px 8px rgba(20,184,166,0.07);transition:border 0.2s;"
       title="Filter by Appointment Month & Year"
+      onfocus="this.style.borderColor='#14b8a6'"
+      onblur="this.style.borderColor='#0f766e'"
     >
   </div>
   <div style="grid-column:1/-1;display:flex;justify-content:center;align-items:center;margin-top:12px;">
-    <button onclick="loadPatients()" title="Search" style="min-width:200px;padding:18px 0;background:linear-gradient(90deg,#0f766e 60%,#14b8a6 100%);color:#fff;font-weight:800;font-size:20px;box-shadow:0 4px 16px rgba(20,184,166,0.13);border:none;border-radius:12px;transition:background 0.2s;letter-spacing:1px;">
-      <i class="fa-solid fa-magnifying-glass" style="margin-right:10px;font-size:22px;"></i> Search
+    <button onclick="loadPatients()" title="Search" style="min-width:220px;padding:20px 0;background:linear-gradient(90deg,#0f766e 60%,#14b8a6 100%);color:#fff;font-weight:900;font-size:22px;box-shadow:0 6px 24px rgba(20,184,166,0.18);border:none;border-radius:16px;transition:background 0.2s,transform 0.1s;letter-spacing:1.5px;display:flex;align-items:center;justify-content:center;gap:14px;cursor:pointer;"
+      onmouseover="this.style.background='linear-gradient(90deg,#14b8a6 60%,#0f766e 100%)';this.style.transform='scale(1.04)';"
+      onmouseout="this.style.background='linear-gradient(90deg,#0f766e 60%,#14b8a6 100%)';this.style.transform='scale(1)';"
+    >
+      <i class="fa-solid fa-magnifying-glass" style="font-size:26px;"></i> Search
     </button>
   </div>
 </div>

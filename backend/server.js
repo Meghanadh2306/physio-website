@@ -392,14 +392,36 @@ app.get("/patients", auth, async (req, res) => {
   if (status) filter.status = status;
   if (doctor) filter.recommendedDoctor = doctor;
 
-  // Month and year filter for appointmentDate
+  // Month and year filter for appointmentDate OR treatmentHistory.date
   if (month && year) {
-    // month is 1-based in JS Date, but input is 01-12, so subtract 1
     const m = parseInt(month, 10) - 1;
     const y = parseInt(year, 10);
     const start = new Date(y, m, 1);
     const end = new Date(y, m + 1, 1);
-    filter.appointmentDate = { $gte: start, $lt: end };
+    filter.$or = [
+      { appointmentDate: { $gte: start, $lt: end } },
+      { 'treatmentHistory.date': { $gte: start, $lt: end } }
+    ];
+    // If search is also present, combine $and
+    if (search) {
+      filter = {
+        $and: [
+          { $or: [
+            { name: { $regex: search, $options: "i" } },
+            { phone: { $regex: search, $options: "i" } }
+          ] },
+          { $or: [
+            { appointmentDate: { $gte: start, $lt: end } },
+            { 'treatmentHistory.date': { $gte: start, $lt: end } }
+          ] }
+        ]
+      };
+      if (status) filter.$and.push({ status });
+      if (doctor) filter.$and.push({ recommendedDoctor: doctor });
+    } else {
+      if (status) filter.status = status;
+      if (doctor) filter.recommendedDoctor = doctor;
+    }
   }
 
   const patients = await Patient.find(filter).sort({ createdAt: -1 });
