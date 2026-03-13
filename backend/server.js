@@ -164,78 +164,78 @@ app.post("/patients", auth, async (req, res) => {
 
 /* ================= PATIENT APIs ================= */
 app.get("/patient/:id", auth, async (req, res) => {
-    try {
-  const p = await Patient.findById(req.params.id);
-  if (!p) return res.status(404).json({ message: "Patient not found" });
+  try {
+    const p = await Patient.findById(req.params.id);
+    if (!p) return res.status(404).json({ message: "Patient not found" });
 
-  res.json({ ...p.toObject(), dueAmount: p.totalAmount - p.paidAmount });
+    res.json({ ...p.toObject(), dueAmount: p.totalAmount - p.paidAmount });
 
-} catch {
+  } catch {
     res.status(400).json({ message: "Invalid patient ID" });
   }
 });
 
 app.put("/patient/:id", auth, async (req, res) => {
-    try {
-      
-  const p = await Patient.findById(req.params.id);
-  if (!p) return res.status(404).json({ message: "Patient not found" });
+  try {
 
-  const { addPaid = 0, paymentType, notes } = req.body;
-  
-  if (addPaid > 0) {
-    if (!paymentType) {
-      return res.status(400).json({ message: "Payment type is required" });
-    }
+    const p = await Patient.findById(req.params.id);
+    if (!p) return res.status(404).json({ message: "Patient not found" });
 
-    const patientDue = p.totalAmount - p.paidAmount;
+    const { addPaid = 0, paymentType, notes } = req.body;
 
-    if (addPaid > patientDue) {
-      return res.status(400).json({ message: "Payment exceeds total due amount" });
-    }
+    if (addPaid > 0) {
+      if (!paymentType) {
+        return res.status(400).json({ message: "Payment type is required" });
+      }
 
-    p.paidAmount += addPaid;
+      const patientDue = p.totalAmount - p.paidAmount;
 
-    // Distribute paid amount among unpaid visits
-    let remainingPayment = addPaid;
-    if (p.treatmentHistory && p.treatmentHistory.length > 0) {
-      for (const v of p.treatmentHistory) {
-        let vDue = (v.totalAmount || 0) - (v.paidAmount || 0);
-        if (vDue > 0 && remainingPayment > 0) {
-          let payToVisit = Math.min(vDue, remainingPayment);
-          v.paidAmount = (v.paidAmount || 0) + payToVisit;
-          remainingPayment -= payToVisit;
+      if (addPaid > patientDue) {
+        return res.status(400).json({ message: "Payment exceeds total due amount" });
+      }
+
+      p.paidAmount += addPaid;
+
+      // Distribute paid amount among unpaid visits
+      let remainingPayment = addPaid;
+      if (p.treatmentHistory && p.treatmentHistory.length > 0) {
+        for (const v of p.treatmentHistory) {
+          let vDue = (v.totalAmount || 0) - (v.paidAmount || 0);
+          if (vDue > 0 && remainingPayment > 0) {
+            let payToVisit = Math.min(vDue, remainingPayment);
+            v.paidAmount = (v.paidAmount || 0) + payToVisit;
+            remainingPayment -= payToVisit;
+          }
         }
       }
-    }
 
-    // Distribute remaining payment to unpaid invoices
-    let remainingPaymentForInvoices = addPaid;
-    if (p.invoices && p.invoices.length > 0) {
-      for (const inv of p.invoices) {
-        let invDue = (inv.dueAmount || 0);
-        if (invDue > 0 && remainingPaymentForInvoices > 0) {
-          let payToInv = Math.min(invDue, remainingPaymentForInvoices);
-          inv.paidAmount = (inv.paidAmount || 0) + payToInv;
-          inv.dueAmount = invDue - payToInv;
-          remainingPaymentForInvoices -= payToInv;
+      // Distribute remaining payment to unpaid invoices
+      let remainingPaymentForInvoices = addPaid;
+      if (p.invoices && p.invoices.length > 0) {
+        for (const inv of p.invoices) {
+          let invDue = (inv.dueAmount || 0);
+          if (invDue > 0 && remainingPaymentForInvoices > 0) {
+            let payToInv = Math.min(invDue, remainingPaymentForInvoices);
+            inv.paidAmount = (inv.paidAmount || 0) + payToInv;
+            inv.dueAmount = invDue - payToInv;
+            remainingPaymentForInvoices -= payToInv;
+          }
         }
       }
+
+      p.paymentHistory.push({
+        entryType: "Payment",
+        amount: addPaid,
+        paymentType: paymentType,
+        date: new Date()
+      });
     }
 
-    p.paymentHistory.push({
-      entryType: "Payment",
-      amount: addPaid,
-      paymentType: paymentType,
-      date: new Date()
-    });
-  }
-
-  if (notes) p.notes = notes;
-  p.status = p.paidAmount >= p.totalAmount ? "Completed" : "Ongoing";
-  await p.save();
-  res.json({ message: "Payment updated" });
-} catch (err) {
+    if (notes) p.notes = notes;
+    p.status = p.paidAmount >= p.totalAmount ? "Completed" : "Ongoing";
+    await p.save();
+    res.json({ message: "Payment updated" });
+  } catch (err) {
     console.error("Payment Update Error:", err);
     res.status(500).json({ message: "Update failed", error: err.message });
   }
@@ -285,12 +285,12 @@ app.delete("/patient/:id/payment/:paymentIndex", auth, async (req, res) => {
     const removedPayment = p.paymentHistory[paymentIndex];
     if (removedPayment.entryType === "Payment") {
       p.paidAmount -= removedPayment.amount;
-      
+
       const visit = p.treatmentHistory.at(-1);
       if (visit) {
         visit.paidAmount -= removedPayment.amount;
       }
-      
+
       if (p.invoices && p.invoices.length > 0) {
         const lastInvoice = p.invoices[p.invoices.length - 1];
         lastInvoice.paidAmount = (lastInvoice.paidAmount || 0) - removedPayment.amount;
@@ -301,7 +301,7 @@ app.delete("/patient/:id/payment/:paymentIndex", auth, async (req, res) => {
     p.paymentHistory.splice(paymentIndex, 1);
     p.status = p.paidAmount >= p.totalAmount ? "Completed" : "Ongoing";
     await p.save();
-    
+
     res.json({ message: "Payment deleted successfully" });
   } catch (err) {
     console.error(err);
@@ -321,32 +321,32 @@ app.post("/patient/:id/treatments/add", auth, async (req, res) => {
     if (!startDate || !endDate) {
       return res.status(400).json({ message: "Start and End date required" });
     }
-// 1️⃣ Save treatment history
-patient.treatmentHistory.push({
-  startDate,
-  endDate,
-  treatments,
-  totalAmount,
-  paidAmount: 0
-});
+    // 1️⃣ Save treatment history
+    patient.treatmentHistory.push({
+      startDate,
+      endDate,
+      treatments,
+      totalAmount,
+      paidAmount: 0
+    });
 
     patient.totalAmount += totalAmount;
     patient.endDate = endDate;
 
     // 2️⃣ AUTO GENERATE INVOICE
-const invoiceNumber = generateInvoiceNumber();
+    const invoiceNumber = generateInvoiceNumber();
 
-if (!patient.invoices) patient.invoices = [];
+    if (!patient.invoices) patient.invoices = [];
 
-patient.invoices.push({
-  invoiceNumber,
-  treatmentStartDate: startDate,
-  treatmentEndDate: endDate,
-  totalAmount,
-  paidAmount: 0,
-  dueAmount: totalAmount,
-  createdAt: new Date()
-});
+    patient.invoices.push({
+      invoiceNumber,
+      treatmentStartDate: startDate,
+      treatmentEndDate: endDate,
+      totalAmount,
+      paidAmount: 0,
+      dueAmount: totalAmount,
+      createdAt: new Date()
+    });
 
 
 
@@ -394,7 +394,7 @@ app.delete("/patient/:id/visit/:visitIndex", auth, async (req, res) => {
     }
 
     const visitToDelete = patient.treatmentHistory[index];
-    
+
     // Deduct total amount
     if (visitToDelete.totalAmount) {
       patient.totalAmount -= visitToDelete.totalAmount;
@@ -402,11 +402,11 @@ app.delete("/patient/:id/visit/:visitIndex", auth, async (req, res) => {
 
     // Attempt to reverse the paidAmount from this visit
     let amountToReverse = visitToDelete.paidAmount || 0;
-    
+
     // Find and remove corresponding invoice
     if (patient.invoices && patient.invoices.length > 0) {
-      const invIndex = patient.invoices.findIndex(inv => 
-        inv.treatmentStartDate === visitToDelete.startDate && 
+      const invIndex = patient.invoices.findIndex(inv =>
+        inv.treatmentStartDate === visitToDelete.startDate &&
         inv.treatmentEndDate === visitToDelete.endDate
       );
       if (invIndex !== -1) {
@@ -418,7 +418,7 @@ app.delete("/patient/:id/visit/:visitIndex", auth, async (req, res) => {
     if (amountToReverse > 0) {
       patient.paidAmount -= amountToReverse;
       if (patient.paidAmount < 0) patient.paidAmount = 0;
-      
+
       // Keep ledger consistent
       patient.paymentHistory.push({
         entryType: "Refund/Reversal",
@@ -495,14 +495,18 @@ app.get("/patients", auth, async (req, res) => {
     if (search) {
       filter = {
         $and: [
-          { $or: [
-            { name: { $regex: search, $options: "i" } },
-            { phone: { $regex: search, $options: "i" } }
-          ] },
-          { $or: [
-            { appointmentDate: { $gte: start, $lt: end } },
-            { 'treatmentHistory.date': { $gte: start, $lt: end } }
-          ] }
+          {
+            $or: [
+              { name: { $regex: search, $options: "i" } },
+              { phone: { $regex: search, $options: "i" } }
+            ]
+          },
+          {
+            $or: [
+              { appointmentDate: { $gte: start, $lt: end } },
+              { 'treatmentHistory.date': { $gte: start, $lt: end } }
+            ]
+          }
         ]
       };
       if (status) filter.$and.push({ status });
@@ -548,7 +552,7 @@ app.delete("/patient/:id/invoice/:invoiceNumber", auth, async (req, res) => {
 
     // Find invoice to get details
     const invoiceToDelete = patient.invoices.find(inv => inv.invoiceNumber === invoiceNumber);
-    
+
     if (!invoiceToDelete) {
       return res.status(404).json({ message: "Invoice not found" });
     }
@@ -557,14 +561,14 @@ app.delete("/patient/:id/invoice/:invoiceNumber", auth, async (req, res) => {
     let treatmentToDelete = null;
     if (patient.treatmentHistory && patient.treatmentHistory.length > 0) {
       const treatmentIndex = patient.treatmentHistory.findIndex(
-        th => th.startDate === invoiceToDelete.treatmentStartDate && 
-              th.endDate === invoiceToDelete.treatmentEndDate
+        th => th.startDate === invoiceToDelete.treatmentStartDate &&
+          th.endDate === invoiceToDelete.treatmentEndDate
       );
-      
+
       if (treatmentIndex !== -1) {
         treatmentToDelete = patient.treatmentHistory[treatmentIndex];
         patient.treatmentHistory.splice(treatmentIndex, 1);
-        
+
         // Deduct from total amount
         if (treatmentToDelete.totalAmount) {
           patient.totalAmount -= treatmentToDelete.totalAmount;
@@ -579,11 +583,11 @@ app.delete("/patient/:id/invoice/:invoiceNumber", auth, async (req, res) => {
 
     // Delete all related payments (all payments that were made for this treatment visit)
     const amountToReverse = invoiceToDelete.paidAmount || (treatmentToDelete ? (treatmentToDelete.paidAmount || 0) : 0);
-    
+
     if (amountToReverse > 0) {
       patient.paidAmount -= amountToReverse;
       if (patient.paidAmount < 0) patient.paidAmount = 0;
-      
+
       // Keep ledger consistent without destroying all payments
       patient.paymentHistory.push({
         entryType: "Refund/Reversal",
@@ -689,21 +693,21 @@ app.get("/invoice/:id", async (req, res) => {
     if (!patient) return res.status(404).send("Patient not found");
 
     // ✅ ADD HERE (THIS IS THE PLACE)
-const requestedInvoiceNo = req.query.invoice;
+    const requestedInvoiceNo = req.query.invoice;
 
-let invoice;
-if (requestedInvoiceNo) {
-  invoice = patient.invoices.find(
-    i => i.invoiceNumber === requestedInvoiceNo
-  );
-} else {
-  invoice = patient.invoices?.at(-1);
-}
+    let invoice;
+    if (requestedInvoiceNo) {
+      invoice = patient.invoices.find(
+        i => i.invoiceNumber === requestedInvoiceNo
+      );
+    } else {
+      invoice = patient.invoices?.at(-1);
+    }
 
     // PDF creation starts AFTER this
     const doc = new PDFDocument({ size: "A4", margin: 40 });
     res.setHeader("Content-Type", "application/pdf");
-res.setHeader("Content-Disposition",`attachment; filename=${patient.name}_invoice.pdf`);
+    res.setHeader("Content-Disposition", `attachment; filename=${patient.name}_invoice.pdf`);
     doc.pipe(res);
     /* HEADER */
     doc.image(path.join(__dirname, "assets", "logo.jpg"), 0, 0, { width: doc.page.width });
@@ -712,28 +716,28 @@ res.setHeader("Content-Disposition",`attachment; filename=${patient.name}_invoic
     doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
     doc.moveDown(1);
 
-doc.moveDown(1);
-doc.font("Helvetica-Bold").fontSize(14).text("Patient Details", 50);
-doc.moveDown(0.5);
+    doc.moveDown(1);
+    doc.font("Helvetica-Bold").fontSize(14).text("Patient Details", 50);
+    doc.moveDown(0.5);
 
-// Box
-const boxY = doc.y;
-doc
-  .roundedRect(40, boxY, 515, 90, 8)
-  .stroke();
+    // Box
+    const boxY = doc.y;
+    doc
+      .roundedRect(40, boxY, 515, 90, 8)
+      .stroke();
 
-doc.font("Helvetica").fontSize(11);
+    doc.font("Helvetica").fontSize(11);
 
-doc.text(`Name      : ${patient.name}`, 55, boxY + 10);
-doc.text(`Phone     : ${patient.phone}`, 55, boxY + 28);
-doc.text(`Gender    : ${patient.gender || "-"}`, 300, boxY + 10);
-doc.text(`Age       : ${patient.age}`, 300, boxY + 28);
-doc.text(`Address   : ${patient.address || "-"}`, 300, boxY + 46);
-doc.text(`Start Date: ${formatDateDMY(invoice?.treatmentStartDate)}`,55,boxY + 46);
-doc.text(`End Date  : ${formatDateDMY(invoice?.treatmentEndDate || patient.endDate)}`, 55, boxY + 64);
-doc.text(`Invoice No: ${invoice?.invoiceNumber || "-"}`,300,boxY + 64);
+    doc.text(`Name      : ${patient.name}`, 55, boxY + 10);
+    doc.text(`Phone     : ${patient.phone}`, 55, boxY + 28);
+    doc.text(`Gender    : ${patient.gender || "-"}`, 300, boxY + 10);
+    doc.text(`Age       : ${patient.age}`, 300, boxY + 28);
+    doc.text(`Address   : ${patient.address || "-"}`, 300, boxY + 46);
+    doc.text(`Start Date: ${formatDateDMY(invoice?.treatmentStartDate)}`, 55, boxY + 46);
+    doc.text(`End Date  : ${formatDateDMY(invoice?.treatmentEndDate || patient.endDate)}`, 55, boxY + 64);
+    doc.text(`Invoice No: ${invoice?.invoiceNumber || "-"}`, 300, boxY + 64);
 
-doc.y = boxY + 105;
+    doc.y = boxY + 105;
 
     /* TABLE */
     doc.font("Helvetica-Bold").fontSize(13).text("Treatment Details");
@@ -749,7 +753,7 @@ doc.y = boxY + 105;
 
     let targetVisit = null;
     if (invoice && patient.treatmentHistory) {
-      targetVisit = patient.treatmentHistory.find(th => 
+      targetVisit = patient.treatmentHistory.find(th =>
         th.startDate === invoice.treatmentStartDate && th.endDate === invoice.treatmentEndDate
       );
     }
@@ -770,41 +774,41 @@ doc.y = boxY + 105;
       y += 18;
     });
 
-if (!treatments.length) {
-  doc.text("No treatment data available", 50, y);
-  doc.end();
-  return;
-}
+    if (!treatments.length) {
+      doc.text("No treatment data available", 50, y);
+      doc.end();
+      return;
+    }
 
-/* ===== SUMMARY (ONLY ABOVE TREATMENTS) ===== */
+    /* ===== SUMMARY (ONLY ABOVE TREATMENTS) ===== */
 
-y += 15;
-doc.moveTo(350, y).lineTo(555, y).stroke();
-y += 10;
+    y += 15;
+    doc.moveTo(350, y).lineTo(555, y).stroke();
+    y += 10;
 
-// calculate total ONLY for above treatments
-let visitTotal = 0;
+    // calculate total ONLY for above treatments
+    let visitTotal = 0;
 
-treatments.forEach(t => {
-  const amount = Number(t.pricePerDay || 0) * Number(t.days || 0);
-  visitTotal += amount;
-});
+    treatments.forEach(t => {
+      const amount = Number(t.pricePerDay || 0) * Number(t.days || 0);
+      visitTotal += amount;
+    });
 
-const visitPaid = invoice ? (invoice.paidAmount || 0) : (targetVisit ? (targetVisit.paidAmount || 0) : visitTotal);
-const visitDue  = invoice ? (invoice.dueAmount || 0) : Math.max(visitTotal - visitPaid, 0);
-// TOTAL
-doc.font("Helvetica");
-doc.text("Total Amount", 350, y);
-doc.text(`₹ ${visitTotal}`, 500, y, { align: "right" });
-// PAID
-y += 15;
-doc.text("Paid Amount", 350, y);
-doc.text(`₹ ${visitPaid}`, 500, y, { align: "right" });
-// DUE
-y += 15;
-doc.font("Helvetica-Bold");
-doc.text("Due Amount", 350, y);
-doc.text(`₹ ${visitDue}`, 500, y, { align: "right" });
+    const visitPaid = visitTotal;
+    const visitDue = 0;
+    // TOTAL
+    doc.font("Helvetica");
+    doc.text("Total Amount", 350, y);
+    doc.text(`₹ ${visitTotal}`, 500, y, { align: "right" });
+    // PAID
+    y += 15;
+    doc.text("Paid Amount", 350, y);
+    doc.text(`₹ ${visitPaid}`, 500, y, { align: "right" });
+    // DUE
+    y += 15;
+    doc.font("Helvetica-Bold");
+    doc.text("Due Amount", 350, y);
+    doc.text(`₹ ${visitDue}`, 500, y, { align: "right" });
     /* SIGN */
     doc.moveDown(4);
     doc.font("Helvetica").fontSize(13)
@@ -831,7 +835,7 @@ doc.text(`₹ ${visitDue}`, 500, y, { align: "right" });
       "Wishing you a speedy recovery",
       { width: doc.page.width - 80, align: "center" }
     );
-        doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+    doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
     doc.moveDown(1);
     doc.font("Helvetica").fontSize(13).text(
       "This is a Compuer Generated Invoice and does not require a physical signature.",
@@ -865,10 +869,12 @@ app.get("/report/monthly/excel", auth, async (req, res) => {
   ws.getCell('A1').value = 'Physio Clinic Monthly Report';
   ws.getCell('A1').font = { size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
   ws.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws.getCell('A1').fill = { type: 'gradient', gradient: 'angle', degree: 0, stops: [
-    { position: 0, color: { argb: 'FF0f766e' } },
-    { position: 1, color: { argb: 'FF14b8a6' } }
-  ]};
+  ws.getCell('A1').fill = {
+    type: 'gradient', gradient: 'angle', degree: 0, stops: [
+      { position: 0, color: { argb: 'FF0f766e' } },
+      { position: 1, color: { argb: 'FF14b8a6' } }
+    ]
+  };
 
   ws.mergeCells('A2', 'H2');
   ws.getCell('A2').value = `Month: ${month}/${year}`;
