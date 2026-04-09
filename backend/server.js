@@ -941,6 +941,168 @@ app.get("/report/monthly/excel", auth, async (req, res) => {
   res.end();
 });
 
+/* ================= DOCTOR MONTHLY EXCEL ================= */
+app.get("/doctor/report/excel", auth, async (req, res) => {
+  const { doctor, month, year } = req.query;
+  if (!doctor || !month || !year) {
+    return res.status(400).send("Doctor, month, and year are required");
+  }
+
+  const start = new Date(year, month - 1, 1);
+  const end = new Date(year, month, 0, 23, 59, 59);
+
+  const pts = await Patient.find({
+    recommendedDoctor: doctor,
+    appointmentDate: { $gte: start, $lte: end }
+  });
+
+  let total = 0, paid = 0;
+  pts.forEach(p => { total += p.totalAmount; paid += p.paidAmount; });
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Doctor Monthly Report", {
+    pageSetup: { orientation: 'landscape' }
+  });
+
+  ws.mergeCells('A1', 'H1');
+  ws.getCell('A1').value = `Monthly Report: Dr. ${doctor}`;
+  ws.getCell('A1').font = { size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
+  ws.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+  ws.getCell('A1').fill = {
+    type: 'gradient', gradient: 'angle', degree: 0, stops: [
+      { position: 0, color: { argb: 'FF0f766e' } },
+      { position: 1, color: { argb: 'FF14b8a6' } }
+    ]
+  };
+
+  ws.mergeCells('A2', 'H2');
+  ws.getCell('A2').value = `Month: ${month}/${year}`;
+  ws.getCell('A2').font = { size: 12, bold: true };
+  ws.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+
+  ws.addRow([]);
+  ws.addRow(['Total Patients', pts.length, '', 'Total Amount', total, '', 'Paid Amount', paid]);
+  ws.addRow(['', '', '', 'Due Amount', total - paid]);
+  ws.addRow([]);
+
+  const headerRow = ws.addRow([
+    'Patient Name', 'Age', 'Gender', 'Phone', 'Appointment Date', 'Total Amount', 'Paid Amount', 'Due Amount'
+  ]);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0f766e' } };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+  pts.forEach(p => {
+    ws.addRow([
+      p.name, p.age || '', p.gender || '', p.phone || '',
+      p.appointmentDate ? new Date(p.appointmentDate).toLocaleDateString('en-IN') : '',
+      p.totalAmount || 0, p.paidAmount || 0,
+      (p.totalAmount || 0) - (p.paidAmount || 0)
+    ]);
+  });
+
+  ws.columns.forEach(col => { col.width = 15; });
+
+  res.setHeader("Content-Disposition", `attachment; filename=doctor_report_${doctor}_${month}_${year}.xlsx`);
+  await wb.xlsx.write(res);
+  res.end();
+});
+
+/* ================= DOCTOR MONTHLY PDF ================= */
+app.get("/doctor/report/pdf", async (req, res) => {
+  try {
+    const token = req.query.token;
+    if (!token) return res.status(401).send("Token missing");
+    jwt.verify(token, process.env.JWT_SECRET);
+
+    const { doctor, month, year } = req.query;
+    if (!doctor || !month || !year) {
+      return res.status(400).send("Doctor, month, and year are required");
+    }
+
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59);
+
+    const pts = await Patient.find({
+      recommendedDoctor: doctor,
+      appointmentDate: { $gte: start, $lte: end }
+    });
+
+    const doc = new PDFDocument({ size: "A4", margin: 40 });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=doctor_report_${doctor}_${month}_${year}.pdf`);
+    doc.pipe(res);
+
+    doc.image(path.join(__dirname, "assets", "logo.jpg"), 0, 0, { width: doc.page.width });
+    doc.y = 280;
+    
+    doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+    doc.moveDown(1);
+
+    doc.font("Helvetica-Bold").fontSize(18).text(`Monthly Report: Dr. ${doctor}`, { align: "center" });
+    doc.fontSize(12).text(`Month: ${month}/${year}`, { align: "center" });
+    doc.moveDown(2);
+
+    // Patients table header
+    const startY = doc.y;
+    doc.font("Helvetica-Bold").fontSize(11);
+    doc.text("Name", 40, startY, { width: 100 });
+    doc.text("Phone", 140, startY, { width: 100 });
+    doc.text("Gender", 240, startY, { width: 60 });
+    doc.text("Date", 300, startY, { width: 80 });
+    doc.text("Amount", 400, startY, { width: 70 });
+    doc.text("Due", 480, startY, { width: 70 });
+    
+    doc.moveTo(40, startY + 15).lineTo(555, startY + 15).stroke();
+
+    let y = startY + 25;
+    doc.font("Helvetica").fontSize(10);
+    
+    let totalAmt = 0;
+    let dueAmt = 0;
+
+    pts.forEach(p => {
+      let tAmt = p.totalAmount || 0;
+      let dAmt = (p.totalAmount || 0) - (p.paidAmount || 0);
+      totalAmt += tAmt;
+      dueAmt += dAmt;
+
+      doc.text(p.name, 40, y, { width: 100, truncate: true });
+      doc.text(p.phone, 140, y, { width: 100, truncate: true });
+      doc.text(p.gender || "-", 240, y, { width: 60, truncate: true });
+      doc.text(p.appointmentDate ? new Date(p.appointmentDate).toISOString().split('T')[0] : "-", 300, y, { width: 80, truncate: true });
+      doc.text(`Rs. ${tAmt}`, 400, y, { width: 70, truncate: true });
+      doc.text(`Rs. ${dAmt}`, 480, y, { width: 70, truncate: true });
+
+      y += 20;
+      if (y > 750) {
+        doc.addPage();
+        y = 40;
+      }
+    });
+
+    if (pts.length === 0) {
+      doc.text("No patients found for this period.", 40, y);
+      y += 20;
+    }
+
+    y += 10;
+    doc.moveTo(40, y).lineTo(555, y).stroke();
+    y += 10;
+
+    doc.font("Helvetica-Bold").fontSize(12);
+    doc.text(`Total Patients: ${pts.length}`, 40, y);
+    doc.text(`Total Amount: Rs. ${totalAmt}`, 250, y);
+    doc.text(`Due Amount: Rs. ${dueAmt}`, 400, y);
+    
+    doc.end();
+
+  } catch (err) {
+    console.error("PDF ERROR:", err);
+    res.status(500).send("Failed to generate PDF");
+  }
+});
+
 /* ================= SERVER ================= */
 const PORT = process.env.PORT || 5500;
 
