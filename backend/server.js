@@ -1085,14 +1085,29 @@ app.get("/doctor/report/pdf", async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename=doctor_report_${doctor}_${month}_${year}.pdf`);
     doc.pipe(res);
 
-    doc.font("Times-Bold").fontSize(22).text(`${doctor.toUpperCase()} SIR`, { align: "center" });
-    const monthName = new Date(0, parseInt(month) - 1).toLocaleString("default", { month: "long" }).toUpperCase();
-    doc.fontSize(16).text(`${monthName} MONTH ${year}`, { align: "center" });
-    doc.moveDown(2);
+    /* LOGO HEADER */
+    doc.image(path.join(__dirname, "assets", "logo.jpg"), 0, 0, { width: doc.page.width });
+    doc.y = 280;
+    doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+    doc.moveDown(1);
 
-    // Patients table header
+    const monthName = new Date(0, parseInt(month) - 1).toLocaleString("default", { month: "long" }).toUpperCase();
+
+    /* DOCTOR DETAILS BOX */
+    doc.font("Helvetica-Bold").fontSize(14).text("Doctor Report Summary", 40);
+    doc.moveDown(0.5);
+    const boxY = doc.y;
+    doc.roundedRect(40, boxY, 515, 60, 8).stroke();
+    
+    doc.font("Helvetica").fontSize(12);
+    doc.text(`Doctor Name : Dr. ${doctor.toUpperCase()} SIR`, 55, boxY + 15);
+    doc.text(`Report Period : ${monthName} ${year}`, 55, boxY + 35);
+    
+    doc.y = boxY + 85;
+
+    /* TABLE HEADERS */
     const startY = doc.y;
-    doc.font("Times-Bold").fontSize(12);
+    doc.font("Times-Bold").fontSize(11);
     
     doc.text("PATIENT NAME", 40, startY, { width: 150, align: 'center' });
     doc.text("TREATMENT DAYS", 190, startY, { width: 120, align: 'center' });
@@ -1106,6 +1121,8 @@ app.get("/doctor/report/pdf", async (req, res) => {
     doc.rect(430, startY - 5, 120, 25).stroke();
 
     let y = startY + 25;
+    let grandTotalFee = 0;
+    let grandRefFee = 0;
     
     pts.forEach(p => {
       let totalDays = 0;
@@ -1138,6 +1155,8 @@ app.get("/doctor/report/pdf", async (req, res) => {
       
       if (totalFee > 0 || totalDays > 0 || (p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix))) {
          const refFee = Math.round(totalFee * 0.30);
+         grandTotalFee += totalFee;
+         grandRefFee += refFee;
          
          const nameText = p.name.toUpperCase();
          const continueText = p.status === "Ongoing" ? "(CONTINUE)" : "";
@@ -1147,17 +1166,18 @@ app.get("/doctor/report/pdf", async (req, res) => {
          doc.rect(310, y - 5, 120, 35).stroke();
          doc.rect(430, y - 5, 120, 35).stroke();
 
+         doc.font("Times-Roman").fontSize(10);
          doc.text(nameText, 45, y, { width: 140, align: 'center' });
          if (continueText) {
              doc.text(continueText, 45, y + 12, { width: 140, align: 'center' });
          }
          
          doc.text(totalDays ? totalDays.toString() : "-", 190, y + 6, { width: 120, align: 'center' });
-         doc.text(totalFee ? totalFee.toString() : "-", 310, y + 6, { width: 120, align: 'center' });
-         doc.text(refFee ? refFee.toString() : "-", 430, y + 6, { width: 120, align: 'center' });
+         doc.text(totalFee ? "Rs. " + totalFee.toString() : "-", 310, y + 6, { width: 120, align: 'center' });
+         doc.text(refFee ? "Rs. " + refFee.toString() : "-", 430, y + 6, { width: 120, align: 'center' });
 
          y += 35;
-         if (y > 750) {
+         if (y > 650) {
            doc.addPage();
            y = 40;
          }
@@ -1165,8 +1185,36 @@ app.get("/doctor/report/pdf", async (req, res) => {
     });
 
     if (y === startY + 25) {
-      doc.text("NO PATIENTS FOUND FOR THIS PERIOD.", 40, y + 10, { align: 'center' });
+      doc.font("Times-Bold").fontSize(12);
+      doc.text("NO PATIENTS FOUND FOR THIS PERIOD.", 40, y + 10, { align: 'center', width: 515 });
+      y += 40;
     }
+
+    // Grand Totals Summary
+    y += 10;
+    doc.moveTo(250, y).lineTo(550, y).stroke();
+    y += 10;
+    doc.font("Helvetica-Bold").fontSize(12);
+    doc.text("Total Treatment Fees:", 250, y);
+    doc.text(`Rs. ${grandTotalFee}`, 430, y, { align: 'center', width: 120 });
+    y += 20;
+    doc.text("Total Referral Fees:", 250, y);
+    doc.text(`Rs. ${grandRefFee}`, 430, y, { align: 'center', width: 120 });
+
+    /* SIGNATURE */
+    y += 50;
+    if (y > 700) { doc.addPage(); y = 40; }
+    
+    doc.font("Helvetica").fontSize(13).text("Authorized Signature", 410, y);
+    doc.image(path.join(__dirname, "assets", "sign.png"), 420, y + 5, { width: 100 });
+
+    /* FOOTER */
+    doc.y = doc.page.height - 80;
+    doc.font("Helvetica-Bold").fontSize(14).text(
+      "Thank you for choosing Sri Physiotherapy Center",
+      40, doc.y, { width: doc.page.width - 80, align: "center" }
+    );
+    doc.moveTo(40, doc.y + 20).lineTo(555, doc.y + 20).stroke();
 
     doc.end();
 
