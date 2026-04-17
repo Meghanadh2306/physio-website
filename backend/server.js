@@ -951,57 +951,103 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
   const start = new Date(year, month - 1, 1);
   const end = new Date(year, month, 0, 23, 59, 59);
 
+  // Get patients with appointment or treatments in this month
+  const mStr = month.toString().padStart(2, '0');
+  const monthPrefix = `${year}-${mStr}`;
+
   const pts = await Patient.find({
     recommendedDoctor: doctor,
-    appointmentDate: { $gte: start, $lte: end }
+    $or: [
+      { appointmentDate: { $gte: start, $lte: end } },
+      { 'treatmentHistory.startDate': { $regex: `^${monthPrefix}` } }
+    ]
   });
-
-  let total = 0, paid = 0;
-  pts.forEach(p => { total += p.totalAmount; paid += p.paidAmount; });
 
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Doctor Monthly Report", {
-    pageSetup: { orientation: 'landscape' }
+    pageSetup: { orientation: 'portrait' }
   });
 
-  ws.mergeCells('A1', 'H1');
-  ws.getCell('A1').value = `Monthly Report: Dr. ${doctor}`;
-  ws.getCell('A1').font = { size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
+  // Main Header
+  ws.mergeCells('A1', 'D1');
+  ws.getCell('A1').value = `${doctor.toUpperCase()} SIR`;
+  ws.getCell('A1').font = { name: 'Algerian', family: 2, size: 22, bold: true };
   ws.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws.getCell('A1').fill = {
-    type: 'gradient', gradient: 'angle', degree: 0, stops: [
-      { position: 0, color: { argb: 'FF0f766e' } },
-      { position: 1, color: { argb: 'FF14b8a6' } }
-    ]
-  };
 
-  ws.mergeCells('A2', 'H2');
-  ws.getCell('A2').value = `Month: ${month}/${year}`;
-  ws.getCell('A2').font = { size: 12, bold: true };
+  const monthName = new Date(0, parseInt(month) - 1).toLocaleString("default", { month: "long" }).toUpperCase();
+  ws.mergeCells('A2', 'D2');
+  ws.getCell('A2').value = `${monthName} MONTH ${year}`;
+  ws.getCell('A2').font = { name: 'Algerian', family: 2, size: 16, bold: true };
   ws.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
-
-  ws.addRow([]);
-  ws.addRow(['Total Patients', pts.length, '', 'Total Amount', total, '', 'Paid Amount', paid]);
-  ws.addRow(['', '', '', 'Due Amount', total - paid]);
+  
   ws.addRow([]);
 
+  // Table header
   const headerRow = ws.addRow([
-    'Patient Name', 'Age', 'Gender', 'Phone', 'Appointment Date', 'Total Amount', 'Paid Amount', 'Due Amount'
+    'PATIENT NAME', 'TREATMENT DAYS', 'TREATMENT FEE', 'REFERRAL FEE'
   ]);
-  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0f766e' } };
-  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-
-  pts.forEach(p => {
-    ws.addRow([
-      p.name, p.age || '', p.gender || '', p.phone || '',
-      p.appointmentDate ? new Date(p.appointmentDate).toLocaleDateString('en-IN') : '',
-      p.totalAmount || 0, p.paidAmount || 0,
-      (p.totalAmount || 0) - (p.paidAmount || 0)
-    ]);
+  headerRow.font = { bold: true, size: 12 };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  
+  headerRow.eachCell(cell => {
+    cell.border = {
+      top: { style: 'medium' }, left: { style: 'medium' },
+      bottom: { style: 'medium' }, right: { style: 'medium' }
+    };
   });
 
-  ws.columns.forEach(col => { col.width = 15; });
+  // Table body
+  pts.forEach(p => {
+      let totalDays = 0;
+      let totalFee = 0;
+      
+      if (p.treatmentHistory && p.treatmentHistory.length > 0) {
+         p.treatmentHistory.forEach(visit => {
+            if (visit.startDate && visit.startDate.startsWith(monthPrefix)) {
+               visit.treatments.forEach(t => {
+                 totalDays += (Number(t.days) || 0);
+                 totalFee += (Number(t.totalAmount) || 0);
+               });
+            } else if (!visit.startDate && p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
+               visit.treatments.forEach(t => {
+                 totalDays += (Number(t.days) || 0);
+                 totalFee += (Number(t.totalAmount) || 0);
+               });
+            }
+         });
+      } else {
+         if (p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
+            totalFee = p.totalAmount || 0;
+            totalDays = 0; 
+         }
+      }
+
+      if (totalFee === 0 && p.totalAmount > 0 && p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
+         totalFee = p.totalAmount;
+      }
+      
+      // Keep only patients with activity this month
+      if (totalFee > 0 || totalDays > 0 || (p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix))) {
+         const refFee = Math.round(totalFee * 0.30);
+         const displayName = p.status === "Ongoing" ? `${p.name.toUpperCase()}\n(CONTINUE)` : p.name.toUpperCase();
+         
+         const row = ws.addRow([ displayName, totalDays || "-", totalFee || "-", refFee || "-" ]);
+         
+         row.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+         row.font = { bold: true };
+         row.eachCell(cell => {
+            cell.border = {
+              top: { style: 'medium' }, left: { style: 'medium' },
+              bottom: { style: 'medium' }, right: { style: 'medium' }
+            };
+         });
+      }
+  });
+
+  ws.getColumn(1).width = 30;
+  ws.getColumn(2).width = 20;
+  ws.getColumn(3).width = 20;
+  ws.getColumn(4).width = 20;
 
   res.setHeader("Content-Disposition", `attachment; filename=doctor_report_${doctor}_${month}_${year}.xlsx`);
   await wb.xlsx.write(res);
@@ -1022,10 +1068,16 @@ app.get("/doctor/report/pdf", async (req, res) => {
 
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59);
+    
+    const mStr = month.toString().padStart(2, '0');
+    const monthPrefix = `${year}-${mStr}`;
 
     const pts = await Patient.find({
       recommendedDoctor: doctor,
-      appointmentDate: { $gte: start, $lte: end }
+      $or: [
+        { appointmentDate: { $gte: start, $lte: end } },
+        { 'treatmentHistory.startDate': { $regex: `^${monthPrefix}` } }
+      ]
     });
 
     const doc = new PDFDocument({ size: "A4", margin: 40 });
@@ -1033,68 +1085,89 @@ app.get("/doctor/report/pdf", async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename=doctor_report_${doctor}_${month}_${year}.pdf`);
     doc.pipe(res);
 
-    doc.image(path.join(__dirname, "assets", "logo.jpg"), 0, 0, { width: doc.page.width });
-    doc.y = 280;
-    
-    doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
-    doc.moveDown(1);
-
-    doc.font("Helvetica-Bold").fontSize(18).text(`Monthly Report: Dr. ${doctor}`, { align: "center" });
-    doc.fontSize(12).text(`Month: ${month}/${year}`, { align: "center" });
+    doc.font("Times-Bold").fontSize(22).text(`${doctor.toUpperCase()} SIR`, { align: "center" });
+    const monthName = new Date(0, parseInt(month) - 1).toLocaleString("default", { month: "long" }).toUpperCase();
+    doc.fontSize(16).text(`${monthName} MONTH ${year}`, { align: "center" });
     doc.moveDown(2);
 
     // Patients table header
     const startY = doc.y;
-    doc.font("Helvetica-Bold").fontSize(11);
-    doc.text("Name", 40, startY, { width: 100 });
-    doc.text("Phone", 140, startY, { width: 100 });
-    doc.text("Gender", 240, startY, { width: 60 });
-    doc.text("Date", 300, startY, { width: 80 });
-    doc.text("Amount", 400, startY, { width: 70 });
-    doc.text("Due", 480, startY, { width: 70 });
+    doc.font("Times-Bold").fontSize(12);
     
-    doc.moveTo(40, startY + 15).lineTo(555, startY + 15).stroke();
+    doc.text("PATIENT NAME", 40, startY, { width: 150, align: 'center' });
+    doc.text("TREATMENT DAYS", 190, startY, { width: 120, align: 'center' });
+    doc.text("TREATMENT FEE", 310, startY, { width: 120, align: 'center' });
+    doc.text("REFERRAL FEE", 430, startY, { width: 120, align: 'center' });
+    
+    // Header borders
+    doc.rect(40, startY - 5, 150, 25).stroke();
+    doc.rect(190, startY - 5, 120, 25).stroke();
+    doc.rect(310, startY - 5, 120, 25).stroke();
+    doc.rect(430, startY - 5, 120, 25).stroke();
 
     let y = startY + 25;
-    doc.font("Helvetica").fontSize(10);
     
-    let totalAmt = 0;
-    let dueAmt = 0;
-
     pts.forEach(p => {
-      let tAmt = p.totalAmount || 0;
-      let dAmt = (p.totalAmount || 0) - (p.paidAmount || 0);
-      totalAmt += tAmt;
-      dueAmt += dAmt;
+      let totalDays = 0;
+      let totalFee = 0;
+      
+      if (p.treatmentHistory && p.treatmentHistory.length > 0) {
+         p.treatmentHistory.forEach(visit => {
+            if (visit.startDate && visit.startDate.startsWith(monthPrefix)) {
+               visit.treatments.forEach(t => {
+                 totalDays += (Number(t.days) || 0);
+                 totalFee += (Number(t.totalAmount) || 0);
+               });
+            } else if (!visit.startDate && p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
+               visit.treatments.forEach(t => {
+                 totalDays += (Number(t.days) || 0);
+                 totalFee += (Number(t.totalAmount) || 0);
+               });
+            }
+         });
+      } else {
+         if (p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
+            totalFee = p.totalAmount || 0;
+            totalDays = 0; 
+         }
+      }
 
-      doc.text(p.name, 40, y, { width: 100, truncate: true });
-      doc.text(p.phone, 140, y, { width: 100, truncate: true });
-      doc.text(p.gender || "-", 240, y, { width: 60, truncate: true });
-      doc.text(p.appointmentDate ? new Date(p.appointmentDate).toISOString().split('T')[0] : "-", 300, y, { width: 80, truncate: true });
-      doc.text(`Rs. ${tAmt}`, 400, y, { width: 70, truncate: true });
-      doc.text(`Rs. ${dAmt}`, 480, y, { width: 70, truncate: true });
+      if (totalFee === 0 && p.totalAmount > 0 && p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
+         totalFee = p.totalAmount;
+      }
+      
+      if (totalFee > 0 || totalDays > 0 || (p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix))) {
+         const refFee = Math.round(totalFee * 0.30);
+         
+         const nameText = p.name.toUpperCase();
+         const continueText = p.status === "Ongoing" ? "(CONTINUE)" : "";
+         
+         doc.rect(40, y - 5, 150, 35).stroke();
+         doc.rect(190, y - 5, 120, 35).stroke();
+         doc.rect(310, y - 5, 120, 35).stroke();
+         doc.rect(430, y - 5, 120, 35).stroke();
 
-      y += 20;
-      if (y > 750) {
-        doc.addPage();
-        y = 40;
+         doc.text(nameText, 45, y, { width: 140, align: 'center' });
+         if (continueText) {
+             doc.text(continueText, 45, y + 12, { width: 140, align: 'center' });
+         }
+         
+         doc.text(totalDays ? totalDays.toString() : "-", 190, y + 6, { width: 120, align: 'center' });
+         doc.text(totalFee ? totalFee.toString() : "-", 310, y + 6, { width: 120, align: 'center' });
+         doc.text(refFee ? refFee.toString() : "-", 430, y + 6, { width: 120, align: 'center' });
+
+         y += 35;
+         if (y > 750) {
+           doc.addPage();
+           y = 40;
+         }
       }
     });
 
-    if (pts.length === 0) {
-      doc.text("No patients found for this period.", 40, y);
-      y += 20;
+    if (y === startY + 25) {
+      doc.text("NO PATIENTS FOUND FOR THIS PERIOD.", 40, y + 10, { align: 'center' });
     }
 
-    y += 10;
-    doc.moveTo(40, y).lineTo(555, y).stroke();
-    y += 10;
-
-    doc.font("Helvetica-Bold").fontSize(12);
-    doc.text(`Total Patients: ${pts.length}`, 40, y);
-    doc.text(`Total Amount: Rs. ${totalAmt}`, 250, y);
-    doc.text(`Due Amount: Rs. ${dueAmt}`, 400, y);
-    
     doc.end();
 
   } catch (err) {
