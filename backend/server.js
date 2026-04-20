@@ -1003,9 +1003,9 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
 
   const allPts = await Patient.find({ recommendedDoctor: doctor });
   const pts = allPts.filter(p => {
-      let isAppt = p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix);
-      let hasAtt = p.attendance && p.attendance.some(d => d.startsWith(monthPrefix));
-      return isAppt || hasAtt;
+    let isAppt = p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix);
+    let hasAtt = p.attendance && p.attendance.some(d => d.startsWith(monthPrefix));
+    return isAppt || hasAtt;
   });
 
   const wb = new ExcelJS.Workbook();
@@ -1024,7 +1024,7 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
   ws.getCell('A2').value = `${monthName} MONTH ${year}`;
   ws.getCell('A2').font = { name: 'Algerian', family: 2, size: 16, bold: true };
   ws.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
-  
+
   ws.addRow([]);
 
   // Table header
@@ -1033,7 +1033,7 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
   ]);
   headerRow.font = { bold: true, size: 12 };
   headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-  
+
   headerRow.eachCell(cell => {
     cell.border = {
       top: { style: 'medium' }, left: { style: 'medium' },
@@ -1046,40 +1046,40 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
   let grandTotalRefFee = 0;
 
   pts.forEach(p => {
-      let attendedDays = 0;
-      if (p.attendance) {
-        attendedDays = p.attendance.filter(d => d.startsWith(monthPrefix)).length;
+    let attendedDays = 0;
+    if (p.attendance) {
+      attendedDays = p.attendance.filter(d => d.startsWith(monthPrefix)).length;
+    }
+
+    let costPerDay = 0;
+    if (p.treatmentHistory && p.treatmentHistory.length > 0) {
+      const latest = p.treatmentHistory[p.treatmentHistory.length - 1];
+      if (latest.treatments) {
+        costPerDay = latest.treatments.reduce((sum, t) => sum + (t.pricePerDay || 0), 0);
       }
+    }
 
-      let costPerDay = 0;
-      if (p.treatmentHistory && p.treatmentHistory.length > 0) {
-        const latest = p.treatmentHistory[p.treatmentHistory.length - 1];
-        if (latest.treatments) {
-          costPerDay = latest.treatments.reduce((sum, t) => sum + (t.pricePerDay || 0), 0);
-        }
-      }
+    const totalPayment = costPerDay * attendedDays;
+    const refFee = totalPayment * 0.30;
 
-      const totalPayment = costPerDay * attendedDays;
-      const refFee = totalPayment * 0.30;
+    grandTotalFee += totalPayment;
+    grandTotalRefFee += refFee;
 
-      grandTotalFee += totalPayment;
-      grandTotalRefFee += refFee;
+    const displayName = p.status === "Ongoing" ? `${p.name.toUpperCase()}\n(CONTINUE)` : p.name.toUpperCase();
 
-      const displayName = p.status === "Ongoing" ? `${p.name.toUpperCase()}\n(CONTINUE)` : p.name.toUpperCase();
-      
-      const row = ws.addRow([ displayName, attendedDays || "-", totalPayment || "-", refFee.toFixed(2) || "-" ]);
-      
-      row.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      row.font = { bold: true };
-      row.eachCell(cell => {
-        cell.border = {
-          top: { style: 'medium' }, left: { style: 'medium' },
-          bottom: { style: 'medium' }, right: { style: 'medium' }
-        };
-      });
+    const row = ws.addRow([displayName, attendedDays || "-", totalPayment || "-", refFee.toFixed(2) || "-"]);
+
+    row.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    row.font = { bold: true };
+    row.eachCell(cell => {
+      cell.border = {
+        top: { style: 'medium' }, left: { style: 'medium' },
+        bottom: { style: 'medium' }, right: { style: 'medium' }
+      };
+    });
   });
 
-  const totalsRow = ws.addRow([ "MONTHLY SUMMARY", "-", grandTotalFee, grandTotalRefFee.toFixed(2) ]);
+  const totalsRow = ws.addRow(["MONTHLY SUMMARY", "-", grandTotalFee, grandTotalRefFee.toFixed(2)]);
   totalsRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
   totalsRow.font = { bold: true, color: { argb: 'FF16a34a' } };
   totalsRow.eachCell(cell => {
@@ -1113,7 +1113,7 @@ app.get("/doctor/report/pdf", async (req, res) => {
 
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59);
-    
+
     const mStr = month.toString().padStart(2, '0');
     const monthPrefix = `${year}-${mStr}`;
 
@@ -1143,22 +1143,22 @@ app.get("/doctor/report/pdf", async (req, res) => {
     doc.moveDown(0.5);
     const boxY = doc.y;
     doc.roundedRect(40, boxY, 515, 60, 8).stroke();
-    
+
     doc.font("Helvetica").fontSize(12);
     doc.text(`Doctor Name : Dr. ${doctor.toUpperCase()} SIR`, 55, boxY + 15);
     doc.text(`Report Period : ${monthName} ${year}`, 55, boxY + 35);
-    
+
     doc.y = boxY + 85;
 
     /* TABLE HEADERS */
     const startY = doc.y;
     doc.font("Times-Bold").fontSize(11);
-    
+
     doc.text("PATIENT NAME", 40, startY, { width: 150, align: 'center' });
     doc.text("TREATMENT DAYS", 190, startY, { width: 120, align: 'center' });
     doc.text("TREATMENT FEE", 310, startY, { width: 120, align: 'center' });
     doc.text("REFERRAL FEE", 430, startY, { width: 120, align: 'center' });
-    
+
     // Header borders
     doc.rect(40, startY - 5, 150, 25).stroke();
     doc.rect(190, startY - 5, 120, 25).stroke();
@@ -1168,64 +1168,64 @@ app.get("/doctor/report/pdf", async (req, res) => {
     let y = startY + 25;
     let grandTotalFee = 0;
     let grandRefFee = 0;
-    
+
     pts.forEach(p => {
       let totalDays = 0;
       let totalFee = 0;
-      
+
       if (p.treatmentHistory && p.treatmentHistory.length > 0) {
-         p.treatmentHistory.forEach(visit => {
-            if (visit.startDate && visit.startDate.startsWith(monthPrefix)) {
-               visit.treatments.forEach(t => {
-                 totalDays += (Number(t.days) || 0);
-                 totalFee += (Number(t.totalAmount) || 0);
-               });
-            } else if (!visit.startDate && p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
-               visit.treatments.forEach(t => {
-                 totalDays += (Number(t.days) || 0);
-                 totalFee += (Number(t.totalAmount) || 0);
-               });
-            }
-         });
+        p.treatmentHistory.forEach(visit => {
+          if (visit.startDate && visit.startDate.startsWith(monthPrefix)) {
+            visit.treatments.forEach(t => {
+              totalDays += (Number(t.days) || 0);
+              totalFee += (Number(t.totalAmount) || 0);
+            });
+          } else if (!visit.startDate && p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
+            visit.treatments.forEach(t => {
+              totalDays += (Number(t.days) || 0);
+              totalFee += (Number(t.totalAmount) || 0);
+            });
+          }
+        });
       } else {
-         if (p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
-            totalFee = p.totalAmount || 0;
-            totalDays = 0; 
-         }
+        if (p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
+          totalFee = p.totalAmount || 0;
+          totalDays = 0;
+        }
       }
 
       if (totalFee === 0 && p.totalAmount > 0 && p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
-         totalFee = p.totalAmount;
+        totalFee = p.totalAmount;
       }
-      
+
       if (totalFee > 0 || totalDays > 0 || (p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix))) {
-         const refFee = Math.round(totalFee * 0.30);
-         grandTotalFee += totalFee;
-         grandRefFee += refFee;
-         
-         const nameText = p.name.toUpperCase();
-         const continueText = p.status === "Ongoing" ? "(CONTINUE)" : "";
-         
-         doc.rect(40, y - 5, 150, 35).stroke();
-         doc.rect(190, y - 5, 120, 35).stroke();
-         doc.rect(310, y - 5, 120, 35).stroke();
-         doc.rect(430, y - 5, 120, 35).stroke();
+        const refFee = Math.round(totalFee * 0.30);
+        grandTotalFee += totalFee;
+        grandRefFee += refFee;
 
-         doc.font("Times-Roman").fontSize(10);
-         doc.text(nameText, 45, y, { width: 140, align: 'center' });
-         if (continueText) {
-             doc.text(continueText, 45, y + 12, { width: 140, align: 'center' });
-         }
-         
-         doc.text(totalDays ? totalDays.toString() : "-", 190, y + 6, { width: 120, align: 'center' });
-         doc.text(totalFee ? "Rs. " + totalFee.toString() : "-", 310, y + 6, { width: 120, align: 'center' });
-         doc.text(refFee ? "Rs. " + refFee.toString() : "-", 430, y + 6, { width: 120, align: 'center' });
+        const nameText = p.name.toUpperCase();
+        const continueText = p.status === "Ongoing" ? "(CONTINUE)" : "";
 
-         y += 35;
-         if (y > 650) {
-           doc.addPage();
-           y = 40;
-         }
+        doc.rect(40, y - 5, 150, 35).stroke();
+        doc.rect(190, y - 5, 120, 35).stroke();
+        doc.rect(310, y - 5, 120, 35).stroke();
+        doc.rect(430, y - 5, 120, 35).stroke();
+
+        doc.font("Times-Roman").fontSize(10);
+        doc.text(nameText, 45, y, { width: 140, align: 'center' });
+        if (continueText) {
+          doc.text(continueText, 45, y + 12, { width: 140, align: 'center' });
+        }
+
+        doc.text(totalDays ? totalDays.toString() : "-", 190, y + 6, { width: 120, align: 'center' });
+        doc.text(totalFee ? "Rs. " + totalFee.toString() : "-", 310, y + 6, { width: 120, align: 'center' });
+        doc.text(refFee ? "Rs. " + refFee.toString() : "-", 430, y + 6, { width: 120, align: 'center' });
+
+        y += 35;
+        if (y > 650) {
+          doc.addPage();
+          y = 40;
+        }
       }
     });
 
@@ -1249,7 +1249,7 @@ app.get("/doctor/report/pdf", async (req, res) => {
     /* SIGNATURE */
     y += 50;
     if (y > 700) { doc.addPage(); y = 40; }
-    
+
     doc.font("Helvetica").fontSize(13).text("Authorized Signature", 410, y);
     doc.image(path.join(__dirname, "assets", "sign.png"), 420, y + 5, { width: 100 });
 
