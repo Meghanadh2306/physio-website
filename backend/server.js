@@ -274,6 +274,28 @@ app.patch("/patient/:id", auth, async (req, res) => {
   }
 });
 
+app.put("/patient/:id/attendance", auth, async (req, res) => {
+  try {
+    const patient = await Patient.findById(req.params.id);
+    if (!patient) return res.status(404).json({ message: "Patient not found" });
+
+    const { date, action } = req.body; // action: "add" or "remove"
+    if (!patient.attendance) patient.attendance = [];
+
+    if (action === "add") {
+      if (!patient.attendance.includes(date)) patient.attendance.push(date);
+    } else if (action === "remove") {
+      patient.attendance = patient.attendance.filter(d => d !== date);
+    }
+
+    await patient.save();
+    res.json({ message: "Attendance updated", attendance: patient.attendance });
+  } catch (err) {
+    console.error("Attendance error:", err);
+    res.status(500).json({ message: "Failed to update attendance" });
+  }
+});
+
 // DELETE PAYMENT
 app.delete("/patient/:id/payment/:paymentIndex", auth, async (req, res) => {
   try {
@@ -288,16 +310,31 @@ app.delete("/patient/:id/payment/:paymentIndex", auth, async (req, res) => {
     const removedPayment = p.paymentHistory[paymentIndex];
     if (removedPayment.entryType === "Payment") {
       p.paidAmount -= removedPayment.amount;
+      if (p.paidAmount < 0) p.paidAmount = 0;
 
-      const visit = p.treatmentHistory.at(-1);
-      if (visit) {
-        visit.paidAmount -= removedPayment.amount;
+      let visitReverse = removedPayment.amount;
+      if (p.treatmentHistory && p.treatmentHistory.length > 0) {
+        for (let i = p.treatmentHistory.length - 1; i >= 0; i--) {
+          let v = p.treatmentHistory[i];
+          if (v.paidAmount > 0 && visitReverse > 0) {
+            let refund = Math.min(v.paidAmount, visitReverse);
+            v.paidAmount -= refund;
+            visitReverse -= refund;
+          }
+        }
       }
 
+      let invReverse = removedPayment.amount;
       if (p.invoices && p.invoices.length > 0) {
-        const lastInvoice = p.invoices[p.invoices.length - 1];
-        lastInvoice.paidAmount = (lastInvoice.paidAmount || 0) - removedPayment.amount;
-        lastInvoice.dueAmount = (lastInvoice.dueAmount || 0) + removedPayment.amount;
+        for (let i = p.invoices.length - 1; i >= 0; i--) {
+          let inv = p.invoices[i];
+          if (inv.paidAmount > 0 && invReverse > 0) {
+            let refund = Math.min(inv.paidAmount, invReverse);
+            inv.paidAmount -= refund;
+            inv.dueAmount = (inv.dueAmount || 0) + refund;
+            invReverse -= refund;
+          }
+        }
       }
     }
 
@@ -401,6 +438,7 @@ app.delete("/patient/:id/visit/:visitIndex", auth, async (req, res) => {
     // Deduct total amount
     if (visitToDelete.totalAmount) {
       patient.totalAmount -= visitToDelete.totalAmount;
+      if (patient.totalAmount < 0) patient.totalAmount = 0;
     }
 
     // Attempt to reverse the paidAmount from this visit
@@ -562,6 +600,8 @@ app.delete("/patient/:id/invoice/:invoiceNumber", auth, async (req, res) => {
 
     // Find and remove corresponding treatment history entry
     let treatmentToDelete = null;
+    let deductedFromTotal = false;
+
     if (patient.treatmentHistory && patient.treatmentHistory.length > 0) {
       const treatmentIndex = patient.treatmentHistory.findIndex(
         th => th.startDate === invoiceToDelete.treatmentStartDate &&
@@ -575,9 +615,15 @@ app.delete("/patient/:id/invoice/:invoiceNumber", auth, async (req, res) => {
         // Deduct from total amount
         if (treatmentToDelete.totalAmount) {
           patient.totalAmount -= treatmentToDelete.totalAmount;
+          deductedFromTotal = true;
         }
       }
     }
+
+    if (!deductedFromTotal && invoiceToDelete.totalAmount) {
+      patient.totalAmount -= invoiceToDelete.totalAmount;
+    }
+    if (patient.totalAmount < 0) patient.totalAmount = 0;
 
     // Remove invoice
     patient.invoices = patient.invoices.filter(
@@ -955,12 +1001,11 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
   const mStr = month.toString().padStart(2, '0');
   const monthPrefix = `${year}-${mStr}`;
 
-  const pts = await Patient.find({
-    recommendedDoctor: doctor,
-    $or: [
-      { appointmentDate: { $gte: start, $lte: end } },
-      { 'treatmentHistory.startDate': { $regex: `^${monthPrefix}` } }
-    ]
+  const allPts = await Patient.find({ recommendedDoctor: doctor });
+  const pts = allPts.filter(p => {
+      let isAppt = p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix);
+      let hasAtt = p.attendance && p.attendance.some(d => d.startsWith(monthPrefix));
+      return isAppt || hasAtt;
   });
 
   const wb = new ExcelJS.Workbook();
@@ -997,51 +1042,51 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
   });
 
   // Table body
+  let grandTotalFee = 0;
+  let grandTotalRefFee = 0;
+
   pts.forEach(p => {
-      let totalDays = 0;
-      let totalFee = 0;
-      
-      if (p.treatmentHistory && p.treatmentHistory.length > 0) {
-         p.treatmentHistory.forEach(visit => {
-            if (visit.startDate && visit.startDate.startsWith(monthPrefix)) {
-               visit.treatments.forEach(t => {
-                 totalDays += (Number(t.days) || 0);
-                 totalFee += (Number(t.totalAmount) || 0);
-               });
-            } else if (!visit.startDate && p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
-               visit.treatments.forEach(t => {
-                 totalDays += (Number(t.days) || 0);
-                 totalFee += (Number(t.totalAmount) || 0);
-               });
-            }
-         });
-      } else {
-         if (p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
-            totalFee = p.totalAmount || 0;
-            totalDays = 0; 
-         }
+      let attendedDays = 0;
+      if (p.attendance) {
+        attendedDays = p.attendance.filter(d => d.startsWith(monthPrefix)).length;
       }
 
-      if (totalFee === 0 && p.totalAmount > 0 && p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix)) {
-         totalFee = p.totalAmount;
+      let costPerDay = 0;
+      if (p.treatmentHistory && p.treatmentHistory.length > 0) {
+        const latest = p.treatmentHistory[p.treatmentHistory.length - 1];
+        if (latest.treatments) {
+          costPerDay = latest.treatments.reduce((sum, t) => sum + (t.pricePerDay || 0), 0);
+        }
       }
+
+      const totalPayment = costPerDay * attendedDays;
+      const refFee = totalPayment * 0.30;
+
+      grandTotalFee += totalPayment;
+      grandTotalRefFee += refFee;
+
+      const displayName = p.status === "Ongoing" ? `${p.name.toUpperCase()}\n(CONTINUE)` : p.name.toUpperCase();
       
-      // Keep only patients with activity this month
-      if (totalFee > 0 || totalDays > 0 || (p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix))) {
-         const refFee = Math.round(totalFee * 0.30);
-         const displayName = p.status === "Ongoing" ? `${p.name.toUpperCase()}\n(CONTINUE)` : p.name.toUpperCase();
-         
-         const row = ws.addRow([ displayName, totalDays || "-", totalFee || "-", refFee || "-" ]);
-         
-         row.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-         row.font = { bold: true };
-         row.eachCell(cell => {
-            cell.border = {
-              top: { style: 'medium' }, left: { style: 'medium' },
-              bottom: { style: 'medium' }, right: { style: 'medium' }
-            };
-         });
-      }
+      const row = ws.addRow([ displayName, attendedDays || "-", totalPayment || "-", refFee.toFixed(2) || "-" ]);
+      
+      row.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      row.font = { bold: true };
+      row.eachCell(cell => {
+        cell.border = {
+          top: { style: 'medium' }, left: { style: 'medium' },
+          bottom: { style: 'medium' }, right: { style: 'medium' }
+        };
+      });
+  });
+
+  const totalsRow = ws.addRow([ "MONTHLY SUMMARY", "-", grandTotalFee, grandTotalRefFee.toFixed(2) ]);
+  totalsRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  totalsRow.font = { bold: true, color: { argb: 'FF16a34a' } };
+  totalsRow.eachCell(cell => {
+    cell.border = {
+      top: { style: 'medium' }, left: { style: 'medium' },
+      bottom: { style: 'medium' }, right: { style: 'medium' }
+    };
   });
 
   ws.getColumn(1).width = 30;

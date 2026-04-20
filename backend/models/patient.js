@@ -10,6 +10,7 @@ const PatientSchema = new mongoose.Schema({
   // ✅ FIXED (STRING ➜ DATE)
   appointmentDate: { type: Date, required: true },
 
+  attendance: [String],
   treatments: [String],
   problem: String,
   notes: String,

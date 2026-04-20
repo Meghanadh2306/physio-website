@@ -13,12 +13,17 @@ router.get("/doctor-pdf", async (req, res) => {
       return res.status(400).json({ message: "Doctor, Month, Year required" });
     }
 
-    const patients = await Patient.find({
-      recommendedDoctor: doctor,
-      appointmentDate: {
-        $regex: `^${year}-${month.padStart(2, "0")}`
-      }
+    const targetPrefix = `${year}-${month.padStart(2, "0")}`;
+    const allPatients = await Patient.find({ recommendedDoctor: doctor });
+
+    const patients = allPatients.filter(p => {
+      let isAppt = p.appointmentDate && new Date(p.appointmentDate).toISOString().startsWith(targetPrefix);
+      let hasAtt = p.attendance && p.attendance.some(d => d.startsWith(targetPrefix));
+      return isAppt || hasAtt;
     });
+
+    let totalMonthlyPayment = 0;
+    let totalMonthlyRefFee = 0;
 
     // FORCE DOWNLOAD
     res.setHeader("Content-Type", "application/pdf");
@@ -55,21 +60,42 @@ res.setHeader(
       doc.text("No patients found for this period.", { align: "center" });
     } else {
       patients.forEach((p, i) => {
+        let attendedDays = 0;
+        if (p.attendance) {
+          attendedDays = p.attendance.filter(d => d.startsWith(targetPrefix)).length;
+        }
+
+        let costPerDay = 0;
+        if (p.treatmentHistory && p.treatmentHistory.length > 0) {
+          const latest = p.treatmentHistory[p.treatmentHistory.length - 1];
+          if (latest.treatments) {
+            costPerDay = latest.treatments.reduce((sum, t) => sum + (t.pricePerDay || 0), 0);
+          }
+        }
+
+        const totalPayment = costPerDay * attendedDays;
+        const refFee = totalPayment * 0.30;
+
+        totalMonthlyPayment += totalPayment;
+        totalMonthlyRefFee += refFee;
+
         doc.font("Helvetica-Bold")
           .fontSize(14)
-          .text(`${i + 1}. ${p.name} | ${p.phone} | ${p.gender || "-"}`);
+          .text(`${i + 1}. ${p.name} | ${p.phone} | Days: ${attendedDays} | Cost: Rs.${costPerDay}`);
 
         doc.font("Helvetica")
-          .fontSize(14)
-          .text(`Problem: ${p.problem || "-"}`, { indent: 20 });
-
-        doc.text(
-          `Appointment: ${p.appointmentDate}`,
-          { indent: 20 }
-        );
-
+          .fontSize(12)
+          .text(`Total Payment: Rs.${totalPayment} | Ref Fee (30%): Rs.${refFee.toFixed(2)}`, { indent: 20 });
         doc.moveDown(0.8);
       });
+
+      doc.moveDown(1);
+      doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+      doc.moveDown(1);
+
+      doc.font("Helvetica-Bold").fontSize(14);
+      doc.text(`Monthly Total Payment: Rs.${totalMonthlyPayment}`);
+      doc.text(`Monthly Reference Fee: Rs.${totalMonthlyRefFee.toFixed(2)}`);
     }
 
     doc.end();
