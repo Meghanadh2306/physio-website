@@ -1029,7 +1029,7 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
 
   // Table header
   const headerRow = ws.addRow([
-    'PHONE', 'PATIENT NAME', 'DAYS', 'COST/DAY', 'PAYMENT', 'REF FEE'
+    'PHONE', 'PATIENT NAME', 'DAYS', 'PAYMENT', 'REF FEE'
   ]);
   headerRow.font = { bold: true, size: 12 };
   headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
@@ -1059,7 +1059,7 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
       }
     }
 
-    const totalPayment = costPerDay * attendedDays;
+    const totalPayment = p.paidAmount || 0;
     const refFee = totalPayment * 0.30;
 
     grandTotalFee += totalPayment;
@@ -1067,7 +1067,7 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
 
     const displayName = p.status === "Ongoing" ? `${p.name.toUpperCase()}\n(CONTINUE)` : p.name.toUpperCase();
 
-    const row = ws.addRow([ p.phone || "-", displayName, attendedDays || "-", costPerDay || "-", totalPayment || "-", refFee.toFixed(2) || "-" ]);
+    const row = ws.addRow([ p.phone || "-", displayName, attendedDays || "-", totalPayment || "-", refFee.toFixed(2) || "-" ]);
       
     row.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     row.font = { bold: true };
@@ -1079,7 +1079,7 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
     });
   });
 
-  const totalsRow = ws.addRow([ "-", "MONTHLY SUMMARY", "-", "-", grandTotalFee, grandTotalRefFee.toFixed(2) ]);
+  const totalsRow = ws.addRow([ "-", "MONTHLY SUMMARY", "-", grandTotalFee, grandTotalRefFee.toFixed(2) ]);
   totalsRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
   totalsRow.font = { bold: true, color: { argb: 'FF16a34a' } };
   totalsRow.eachCell(cell => {
@@ -1090,11 +1090,10 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
   });
 
   ws.getColumn(1).width = 15;
-  ws.getColumn(2).width = 30;
-  ws.getColumn(3).width = 15;
-  ws.getColumn(4).width = 15;
-  ws.getColumn(5).width = 15;
-  ws.getColumn(6).width = 15;
+  ws.getColumn(2).width = 35;
+  ws.getColumn(3).width = 12;
+  ws.getColumn(4).width = 18;
+  ws.getColumn(5).width = 18;
 
   res.setHeader("Content-Disposition", `attachment; filename=doctor_report_${doctor}_${month}_${year}.xlsx`);
   await wb.xlsx.write(res);
@@ -1155,21 +1154,18 @@ app.get("/doctor/report/pdf", async (req, res) => {
     const startY = doc.y;
     doc.font("Times-Bold").fontSize(11);
 
-    doc.font("Times-Bold").fontSize(9);
-    doc.text("PATIENT NAME", 40, startY, { width: 120, align: 'center' });
-    doc.text("PHONE", 160, startY, { width: 80, align: 'center' });
-    doc.text("DAYS", 240, startY, { width: 50, align: 'center' });
-    doc.text("COST", 290, startY, { width: 70, align: 'center' });
-    doc.text("PAYMENT", 360, startY, { width: 90, align: 'center' });
-    doc.text("REF FEE(30%)", 450, startY, { width: 100, align: 'center' });
+    doc.text("PATIENT NAME", 40, startY, { width: 155, align: 'center' });
+    doc.text("PHONE", 195, startY, { width: 90, align: 'center' });
+    doc.text("DAYS", 285, startY, { width: 60, align: 'center' });
+    doc.text("PAYMENT", 345, startY, { width: 105, align: 'center' });
+    doc.text("REF FEE(30%)", 450, startY, { width: 105, align: 'center' });
 
     // Header borders
-    doc.rect(40, startY - 5, 120, 25).stroke();
-    doc.rect(160, startY - 5, 80, 25).stroke();
-    doc.rect(240, startY - 5, 50, 25).stroke();
-    doc.rect(290, startY - 5, 70, 25).stroke();
-    doc.rect(360, startY - 5, 90, 25).stroke();
-    doc.rect(450, startY - 5, 100, 25).stroke();
+    doc.rect(40, startY - 5, 155, 25).stroke();
+    doc.rect(195, startY - 5, 90, 25).stroke();
+    doc.rect(285, startY - 5, 60, 25).stroke();
+    doc.rect(345, startY - 5, 105, 25).stroke();
+    doc.rect(450, startY - 5, 105, 25).stroke();
 
     let y = startY + 25;
     let grandTotalFee = 0;
@@ -1189,7 +1185,7 @@ app.get("/doctor/report/pdf", async (req, res) => {
         }
       }
 
-      const totalPayment = costPerDay * attendedDays;
+      const totalPayment = p.paidAmount || 0;
       const refFee = totalPayment * 0.30;
 
       grandTotalFee += totalPayment;
@@ -1198,24 +1194,22 @@ app.get("/doctor/report/pdf", async (req, res) => {
       const nameText = p.name.toUpperCase();
       const continueText = p.status === "Ongoing" ? "(CONT.)" : "";
 
-      doc.rect(40, y - 5, 120, 35).stroke();
-      doc.rect(160, y - 5, 80, 35).stroke();
-      doc.rect(240, y - 5, 50, 35).stroke();
-      doc.rect(290, y - 5, 70, 35).stroke();
-      doc.rect(360, y - 5, 90, 35).stroke();
-      doc.rect(450, y - 5, 100, 35).stroke();
+      doc.rect(40, y - 5, 155, 35).stroke();
+      doc.rect(195, y - 5, 90, 35).stroke();
+      doc.rect(285, y - 5, 60, 35).stroke();
+      doc.rect(345, y - 5, 105, 35).stroke();
+      doc.rect(450, y - 5, 105, 35).stroke();
 
       doc.font("Times-Roman").fontSize(9);
-      doc.text(nameText, 42, y, { width: 116, align: 'center' });
+      doc.text(nameText, 42, y, { width: 151, align: 'center' });
       if (continueText) {
-        doc.text(continueText, 42, y + 12, { width: 116, align: 'center' });
+        doc.text(continueText, 42, y + 12, { width: 151, align: 'center' });
       }
 
-      doc.text(p.phone || "-", 160, y + 6, { width: 80, align: 'center' });
-      doc.text(attendedDays ? attendedDays.toString() : "-", 240, y + 6, { width: 50, align: 'center' });
-      doc.text(costPerDay ? costPerDay.toString() : "-", 290, y + 6, { width: 70, align: 'center' });
-      doc.text(totalPayment ? "Rs. " + totalPayment.toString() : "-", 360, y + 6, { width: 90, align: 'center' });
-      doc.text(refFee ? "Rs. " + refFee.toFixed(2).toString() : "-", 450, y + 6, { width: 100, align: 'center' });
+      doc.text(p.phone || "-", 195, y + 6, { width: 90, align: 'center' });
+      doc.text(attendedDays ? attendedDays.toString() : "-", 285, y + 6, { width: 60, align: 'center' });
+      doc.text(totalPayment ? "Rs. " + totalPayment.toString() : "-", 345, y + 6, { width: 105, align: 'center' });
+      doc.text(refFee ? "Rs. " + refFee.toFixed(2).toString() : "-", 450, y + 6, { width: 105, align: 'center' });
 
       y += 35;
       if (y > 650) {

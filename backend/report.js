@@ -65,15 +65,7 @@ res.setHeader(
           attendedDays = p.attendance.filter(d => d.startsWith(targetPrefix)).length;
         }
 
-        let costPerDay = 0;
-        if (p.treatmentHistory && p.treatmentHistory.length > 0) {
-          const latest = p.treatmentHistory[p.treatmentHistory.length - 1];
-          if (latest.treatments) {
-            costPerDay = latest.treatments.reduce((sum, t) => sum + (t.pricePerDay || 0), 0);
-          }
-        }
-
-        const totalPayment = costPerDay * attendedDays;
+        const totalPayment = p.paidAmount || 0;
         const refFee = totalPayment * 0.30;
 
         totalMonthlyPayment += totalPayment;
@@ -81,7 +73,7 @@ res.setHeader(
 
         doc.font("Helvetica-Bold")
           .fontSize(14)
-          .text(`${i + 1}. ${p.name} | ${p.phone} | Days: ${attendedDays} | Cost: Rs.${costPerDay}`);
+          .text(`${i + 1}. ${p.name} | ${p.phone} | Days: ${attendedDays}`);
 
         doc.font("Helvetica")
           .fontSize(12)
