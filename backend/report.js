@@ -69,7 +69,11 @@ res.setHeader(
         let totalPayment = 0;
         if (p.paymentHistory) {
           totalPayment = p.paymentHistory
-            .filter(ph => ph.date && new Date(ph.date).toISOString().startsWith(targetPrefix) && ph.entryType === "Payment")
+            .filter(ph => {
+              if (!ph.date || ph.entryType !== "Payment") return false;
+              const d = new Date(ph.date);
+              return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+            })
             .reduce((sum, ph) => sum + (ph.amount || 0), 0);
         }
         const refFee = totalPayment * 0.30;

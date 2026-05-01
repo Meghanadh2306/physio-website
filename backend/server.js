@@ -530,7 +530,9 @@ app.get("/patients", auth, async (req, res) => {
     const end = new Date(y, m + 1, 1);
     filter.$or = [
       { appointmentDate: { $gte: start, $lt: end } },
-      { 'treatmentHistory.date': { $gte: start, $lt: end } }
+      { 'treatmentHistory.date': { $gte: start, $lt: end } },
+      { 'paymentHistory.date': { $gte: start, $lt: end } },
+      { attendance: { $regex: `^${y}-${(m + 1).toString().padStart(2, '0')}` } }
     ];
     // If search is also present, combine $and
     if (search) {
@@ -1063,7 +1065,11 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
     let totalPayment = 0;
     if (p.paymentHistory) {
       totalPayment = p.paymentHistory
-        .filter(ph => ph.date && new Date(ph.date).toISOString().startsWith(monthPrefix) && ph.entryType === "Payment")
+        .filter(ph => {
+          if (!ph.date || ph.entryType !== "Payment") return false;
+          const d = new Date(ph.date);
+          return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+        })
         .reduce((sum, ph) => sum + (ph.amount || 0), 0);
     }
     const refFee = totalPayment * 0.30;
@@ -1195,7 +1201,11 @@ app.get("/doctor/report/pdf", async (req, res) => {
       let totalPayment = 0;
       if (p.paymentHistory) {
         totalPayment = p.paymentHistory
-          .filter(ph => ph.date && new Date(ph.date).toISOString().startsWith(monthPrefix) && ph.entryType === "Payment")
+          .filter(ph => {
+            if (!ph.date || ph.entryType !== "Payment") return false;
+            const d = new Date(ph.date);
+            return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+          })
           .reduce((sum, ph) => sum + (ph.amount || 0), 0);
       }
       const refFee = totalPayment * 0.30;
