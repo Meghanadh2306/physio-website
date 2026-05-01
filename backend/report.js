@@ -17,10 +17,31 @@ router.get("/doctor-pdf", async (req, res) => {
     const allPatients = await Patient.find({ recommendedDoctor: doctor });
 
     const patients = allPatients.filter(p => {
-      let isAppt = p.appointmentDate && new Date(p.appointmentDate).toISOString().startsWith(targetPrefix);
-      let hasAtt = p.attendance && p.attendance.some(d => d.startsWith(targetPrefix));
-      let hasPay = p.paymentHistory && p.paymentHistory.some(ph => ph.date && new Date(ph.date).toISOString().startsWith(targetPrefix) && ph.entryType === "Payment");
-      return (p.recommendedDoctor === doctor) && (isAppt || hasAtt || hasPay);
+      // Case-insensitive trimmed comparison for doctor name
+      const pDoc = (p.recommendedDoctor || "").trim().toLowerCase();
+      const sDoc = (doctor || "").trim().toLowerCase();
+      if (pDoc !== sDoc) return false;
+
+      let isAppt = false;
+      if (p.appointmentDate) {
+        const ad = new Date(p.appointmentDate);
+        isAppt = ad.getFullYear() === parseInt(year) && (ad.getMonth() + 1) === parseInt(month);
+      }
+      let hasAtt = p.attendance && p.attendance.some(d => {
+        const parts = d.split("-");
+        return parts[0] === year && parseInt(parts[1]) === parseInt(month);
+      });
+      let hasPay = p.paymentHistory && p.paymentHistory.some(ph => {
+        if (!ph.date || (ph.entryType || "").toLowerCase() !== "payment") return false;
+        const d = new Date(ph.date);
+        return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+      });
+      let hasTreat = p.treatmentHistory && p.treatmentHistory.some(th => {
+        if (!th.date) return false;
+        const d = new Date(th.date);
+        return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+      });
+      return isAppt || hasAtt || hasPay || hasTreat;
     });
 
     let totalMonthlyPayment = 0;
@@ -73,11 +94,11 @@ res.setHeader(
         if (p.paymentHistory) {
           totalPayment = p.paymentHistory
             .filter(ph => {
-              if (!ph.date || ph.entryType !== "Payment") return false;
+              if (!ph.date || (ph.entryType || "").toLowerCase() !== "payment") return false;
               const d = new Date(ph.date);
               return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
             })
-            .reduce((sum, ph) => sum + (ph.amount || 0), 0);
+            .reduce((sum, ph) => sum + Number(ph.amount || 0), 0);
         }
         const refFee = totalPayment * 0.30;
 

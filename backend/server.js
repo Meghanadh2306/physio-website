@@ -1003,12 +1003,26 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
   const mStr = month.toString().padStart(2, '0');
   const monthPrefix = `${year}-${mStr}`;
 
-  const allPts = await Patient.find({ recommendedDoctor: doctor });
+  const allPts = await Patient.find({ 
+    recommendedDoctor: { $regex: `^${doctor.trim()}$`, $options: 'i' } 
+  });
   const pts = allPts.filter(p => {
-    let isAppt = p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix);
-    let hasAtt = p.attendance && p.attendance.some(d => d.startsWith(monthPrefix));
-    let hasPay = p.paymentHistory && p.paymentHistory.some(ph => ph.date && ph.date.toISOString().startsWith(monthPrefix) && ph.entryType === "Payment");
-    return isAppt || hasAtt || hasPay;
+    const isAppt = p.appointmentDate && new Date(p.appointmentDate).getFullYear() === parseInt(year) && (new Date(p.appointmentDate).getMonth() + 1) === parseInt(month);
+    const hasAtt = p.attendance && p.attendance.some(d => {
+      const parts = d.split("-");
+      return parts[0] === year && parseInt(parts[1]) === parseInt(month);
+    });
+    const hasPay = p.paymentHistory && p.paymentHistory.some(ph => {
+      if (!ph.date || (ph.entryType || "").toLowerCase() !== "payment") return false;
+      const d = new Date(ph.date);
+      return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+    });
+    const hasTreat = p.treatmentHistory && p.treatmentHistory.some(th => {
+      if (!th.date) return false;
+      const d = new Date(th.date);
+      return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+    });
+    return isAppt || hasAtt || hasPay || hasTreat;
   });
 
   const wb = new ExcelJS.Workbook();
@@ -1069,11 +1083,11 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
     if (p.paymentHistory) {
       totalPayment = p.paymentHistory
         .filter(ph => {
-          if (!ph.date || ph.entryType !== "Payment") return false;
+          if (!ph.date || (ph.entryType || "").toLowerCase() !== "payment") return false;
           const d = new Date(ph.date);
           return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
         })
-        .reduce((sum, ph) => sum + (ph.amount || 0), 0);
+        .reduce((sum, ph) => sum + Number(ph.amount || 0), 0);
     }
     const refFee = totalPayment * 0.30;
 
@@ -1133,15 +1147,26 @@ app.get("/doctor/report/pdf", async (req, res) => {
     const mStr = month.toString().padStart(2, '0');
     const monthPrefix = `${year}-${mStr}`;
 
-    const allPts = await Patient.find({ recommendedDoctor: doctor });
+    const allPts = await Patient.find({ 
+        recommendedDoctor: { $regex: `^${doctor.trim()}$`, $options: 'i' } 
+    });
     const pts = allPts.filter(p => {
-        let isAppt = p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix);
-        let hasAttendance = p.attendance && p.attendance.some(d => {
+        const isAppt = p.appointmentDate && new Date(p.appointmentDate).getFullYear() === parseInt(year) && (new Date(p.appointmentDate).getMonth() + 1) === parseInt(month);
+        const hasAttendance = p.attendance && p.attendance.some(d => {
           const parts = d.split("-");
           return parts[0] === year && parseInt(parts[1]) === parseInt(month);
         });
-        let hasPay = p.paymentHistory && p.paymentHistory.some(ph => ph.date && ph.date.toISOString().startsWith(monthPrefix) && ph.entryType === "Payment");
-        return isAppt || hasAttendance || hasPay;
+        const hasPay = p.paymentHistory && p.paymentHistory.some(ph => {
+            if (!ph.date || (ph.entryType || "").toLowerCase() !== "payment") return false;
+            const d = new Date(ph.date);
+            return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+        });
+        const hasTreat = p.treatmentHistory && p.treatmentHistory.some(th => {
+            if (!th.date) return false;
+            const d = new Date(th.date);
+            return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+        });
+        return isAppt || hasAttendance || hasPay || hasTreat;
     });
 
     const doc = new PDFDocument({ size: "A4", margin: 40 });
@@ -1211,11 +1236,11 @@ app.get("/doctor/report/pdf", async (req, res) => {
       if (p.paymentHistory) {
         totalPayment = p.paymentHistory
           .filter(ph => {
-            if (!ph.date || ph.entryType !== "Payment") return false;
+            if (!ph.date || (ph.entryType || "").toLowerCase() !== "payment") return false;
             const d = new Date(ph.date);
             return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
           })
-          .reduce((sum, ph) => sum + (ph.amount || 0), 0);
+          .reduce((sum, ph) => sum + Number(ph.amount || 0), 0);
       }
       const refFee = totalPayment * 0.30;
 
