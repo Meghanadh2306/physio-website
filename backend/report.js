@@ -65,7 +65,12 @@ res.setHeader(
           attendedDays = p.attendance.filter(d => d.startsWith(targetPrefix)).length;
         }
 
-        const totalPayment = p.paidAmount || 0;
+        let totalPayment = 0;
+        if (p.paymentHistory) {
+          totalPayment = p.paymentHistory
+            .filter(ph => ph.date && new Date(ph.date).toISOString().startsWith(targetPrefix) && ph.entryType === "Payment")
+            .reduce((sum, ph) => sum + (ph.amount || 0), 0);
+        }
         const refFee = totalPayment * 0.30;
 
         totalMonthlyPayment += totalPayment;

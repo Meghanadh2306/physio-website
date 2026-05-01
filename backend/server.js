@@ -1059,7 +1059,12 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
       }
     }
 
-    const totalPayment = p.paidAmount || 0;
+    let totalPayment = 0;
+    if (p.paymentHistory) {
+      totalPayment = p.paymentHistory
+        .filter(ph => ph.date && new Date(ph.date).toISOString().startsWith(monthPrefix) && ph.entryType === "Payment")
+        .reduce((sum, ph) => sum + (ph.amount || 0), 0);
+    }
     const refFee = totalPayment * 0.30;
 
     grandTotalFee += totalPayment;
@@ -1185,7 +1190,12 @@ app.get("/doctor/report/pdf", async (req, res) => {
         }
       }
 
-      const totalPayment = p.paidAmount || 0;
+      let totalPayment = 0;
+      if (p.paymentHistory) {
+        totalPayment = p.paymentHistory
+          .filter(ph => ph.date && new Date(ph.date).toISOString().startsWith(monthPrefix) && ph.entryType === "Payment")
+          .reduce((sum, ph) => sum + (ph.amount || 0), 0);
+      }
       const refFee = totalPayment * 0.30;
 
       grandTotalFee += totalPayment;
