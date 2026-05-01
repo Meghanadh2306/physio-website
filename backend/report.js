@@ -63,7 +63,10 @@ res.setHeader(
       patients.forEach((p, i) => {
         let attendedDays = 0;
         if (p.attendance) {
-          attendedDays = p.attendance.filter(d => d.startsWith(targetPrefix)).length;
+          attendedDays = p.attendance.filter(d => {
+            const parts = d.split("-");
+            return parts[0] === year && parseInt(parts[1]) === parseInt(month);
+          }).length;
         }
 
         let totalPayment = 0;

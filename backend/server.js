@@ -1051,7 +1051,10 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
   pts.forEach(p => {
     let attendedDays = 0;
     if (p.attendance) {
-      attendedDays = p.attendance.filter(d => d.startsWith(monthPrefix)).length;
+      attendedDays = p.attendance.filter(d => {
+        const parts = d.split("-");
+        return parts[0] === year && parseInt(parts[1]) === parseInt(month);
+      }).length;
     }
 
     let costPerDay = 0;
@@ -1133,9 +1136,12 @@ app.get("/doctor/report/pdf", async (req, res) => {
     const allPts = await Patient.find({ recommendedDoctor: doctor });
     const pts = allPts.filter(p => {
         let isAppt = p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix);
-        let hasAtt = p.attendance && p.attendance.some(d => d.startsWith(monthPrefix));
+        let hasAttendance = p.attendance && p.attendance.some(d => {
+          const parts = d.split("-");
+          return parts[0] === year && parseInt(parts[1]) === parseInt(month);
+        });
         let hasPay = p.paymentHistory && p.paymentHistory.some(ph => ph.date && ph.date.toISOString().startsWith(monthPrefix) && ph.entryType === "Payment");
-        return isAppt || hasAtt || hasPay;
+        return isAppt || hasAttendance || hasPay;
     });
 
     const doc = new PDFDocument({ size: "A4", margin: 40 });
@@ -1187,7 +1193,10 @@ app.get("/doctor/report/pdf", async (req, res) => {
     pts.forEach(p => {
       let attendedDays = 0;
       if (p.attendance) {
-        attendedDays = p.attendance.filter(d => d.startsWith(monthPrefix)).length;
+        attendedDays = p.attendance.filter(d => {
+          const parts = d.split("-");
+          return parts[0] === year && parseInt(parts[1]) === parseInt(month);
+        }).length;
       }
 
       let costPerDay = 0;
