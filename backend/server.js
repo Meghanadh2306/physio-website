@@ -1005,7 +1005,8 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
   const pts = allPts.filter(p => {
     let isAppt = p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix);
     let hasAtt = p.attendance && p.attendance.some(d => d.startsWith(monthPrefix));
-    return isAppt || hasAtt;
+    let hasPay = p.paymentHistory && p.paymentHistory.some(ph => ph.date && ph.date.toISOString().startsWith(monthPrefix) && ph.entryType === "Payment");
+    return isAppt || hasAtt || hasPay;
   });
 
   const wb = new ExcelJS.Workbook();
@@ -1127,7 +1128,8 @@ app.get("/doctor/report/pdf", async (req, res) => {
     const pts = allPts.filter(p => {
         let isAppt = p.appointmentDate && p.appointmentDate.toISOString().startsWith(monthPrefix);
         let hasAtt = p.attendance && p.attendance.some(d => d.startsWith(monthPrefix));
-        return isAppt || hasAtt;
+        let hasPay = p.paymentHistory && p.paymentHistory.some(ph => ph.date && ph.date.toISOString().startsWith(monthPrefix) && ph.entryType === "Payment");
+        return isAppt || hasAtt || hasPay;
     });
 
     const doc = new PDFDocument({ size: "A4", margin: 40 });

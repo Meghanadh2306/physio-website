@@ -19,7 +19,8 @@ router.get("/doctor-pdf", async (req, res) => {
     const patients = allPatients.filter(p => {
       let isAppt = p.appointmentDate && new Date(p.appointmentDate).toISOString().startsWith(targetPrefix);
       let hasAtt = p.attendance && p.attendance.some(d => d.startsWith(targetPrefix));
-      return isAppt || hasAtt;
+      let hasPay = p.paymentHistory && p.paymentHistory.some(ph => ph.date && new Date(ph.date).toISOString().startsWith(targetPrefix) && ph.entryType === "Payment");
+      return (p.recommendedDoctor === doctor) && (isAppt || hasAtt || hasPay);
     });
 
     let totalMonthlyPayment = 0;
