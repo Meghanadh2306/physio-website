@@ -32,7 +32,8 @@ router.get("/doctor-pdf", async (req, res) => {
         return parts[0] === year && parseInt(parts[1]) === parseInt(month);
       });
       let hasPay = p.paymentHistory && p.paymentHistory.some(ph => {
-        if (!ph.date || (ph.entryType || "").toLowerCase() !== "payment") return false;
+        if (!ph.date) return false;
+        if (ph.entryType && ph.entryType.toLowerCase() !== "payment") return false;
         const d = new Date(ph.date);
         return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
       });
@@ -94,7 +95,8 @@ res.setHeader(
         if (p.paymentHistory) {
           totalPayment = p.paymentHistory
             .filter(ph => {
-              if (!ph.date || (ph.entryType || "").toLowerCase() !== "payment") return false;
+              if (!ph.date) return false;
+              if (ph.entryType && ph.entryType.toLowerCase() !== "payment") return false;
               const d = new Date(ph.date);
               return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
             })
