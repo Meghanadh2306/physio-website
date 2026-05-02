@@ -64,6 +64,7 @@ const PatientSchema = new mongoose.Schema({
     {
       entryType: String,
       amount: Number,
+      paymentType: String,
       date: { type: Date, default: Date.now }
     }
   ],

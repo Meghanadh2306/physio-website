@@ -184,11 +184,14 @@ app.put("/patient/:id", auth, async (req, res) => {
     const p = await Patient.findById(req.params.id);
     if (!p) return res.status(404).json({ message: "Patient not found" });
 
-    const { addPaid = 0, paymentType, notes } = req.body;
+    const { addPaid = 0, paymentType, notes, date } = req.body;
 
     if (addPaid > 0) {
       if (!paymentType) {
         return res.status(400).json({ message: "Payment type is required" });
+      }
+      if (!date) {
+        return res.status(400).json({ message: "Payment date is required" });
       }
 
       const patientDue = p.totalAmount - p.paidAmount;
@@ -230,7 +233,7 @@ app.put("/patient/:id", auth, async (req, res) => {
         entryType: "Payment",
         amount: addPaid,
         paymentType: paymentType,
-        date: new Date()
+        date: date ? new Date(date) : new Date()
       });
     }
 
