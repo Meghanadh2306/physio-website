@@ -33,6 +33,11 @@ const Patient = require("./models/patient");
 const Doctor = require("./models/doctor");
 const Admin = require("./models/admin");
 
+// Helper to escape special regex characters to prevent MongoServerError
+function escapeRegExp(string) {
+  return string ? string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : "";
+}
+
 const Treatment = mongoose.model("Treatment", new mongoose.Schema({
   name: { type: String, unique: true },
   pricePerDay: Number,
@@ -81,6 +86,11 @@ function auth(req, res, next) {
     res.status(401).json({ message: "Invalid token" });
   }
 }
+
+/* ================= HEALTH CHECK ================= */
+app.get("/health", (req, res) => {
+  res.json({ status: "OK", timestamp: new Date() });
+});
 
 /* ================= LOGIN ================= */
 app.post("/login", async (req, res) => {
@@ -520,8 +530,8 @@ app.get("/patients", auth, async (req, res) => {
   if (search) {
     andConditions.push({
       $or: [
-        { name: { $regex: search, $options: "i" } },
-        { phone: { $regex: search, $options: "i" } }
+        { name: { $regex: escapeRegExp(search), $options: "i" } },
+        { phone: { $regex: escapeRegExp(search), $options: "i" } }
       ]
     });
   }
@@ -656,7 +666,7 @@ app.get("/treatments", auth, async (req, res) => {
 app.post("/treatments", auth, async (req, res) => {
   try {
     // Prevent duplicate names (case-insensitive)
-    const existing = await Treatment.findOne({ name: { $regex: `^${req.body.name}$`, $options: 'i' } });
+    const existing = await Treatment.findOne({ name: { $regex: `^${escapeRegExp(req.body.name)}$`, $options: 'i' } });
     if (existing) {
       return res.status(400).json({ message: "Treatment already exists" });
     }
@@ -1096,7 +1106,7 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
     const end = new Date(year, month, 0, 23, 59, 59);
 
     const allPts = await Patient.find({
-      recommendedDoctor: { $regex: `^${doctor.trim()}$`, $options: 'i' }
+      recommendedDoctor: { $regex: `^${escapeRegExp(doctor.trim())}$`, $options: 'i' }
     });
     const pts = allPts.filter(p => {
       const isAppt = p.appointmentDate && new Date(p.appointmentDate).getFullYear() === parseInt(year) && (new Date(p.appointmentDate).getMonth() + 1) === parseInt(month);
@@ -1225,7 +1235,7 @@ app.get("/doctor/report/pdf", async (req, res) => {
 
     const mStr = month.toString().padStart(2, '0');
     const allPts = await Patient.find({
-      recommendedDoctor: { $regex: `^${doctor.trim()}$`, $options: 'i' }
+      recommendedDoctor: { $regex: `^${escapeRegExp(doctor.trim())}$`, $options: 'i' }
     });
     const pts = allPts.filter(p => {
       const isAppt = p.appointmentDate && new Date(p.appointmentDate).getFullYear() === parseInt(year) && (new Date(p.appointmentDate).getMonth() + 1) === parseInt(month);
