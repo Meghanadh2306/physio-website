@@ -842,8 +842,8 @@ app.get("/invoice/:id", async (req, res) => {
       visitTotal += amount;
     });
 
-    const visitPaid = visitTotal;
-    const visitDue = 0;
+    const visitPaid = invoice?.paidAmount || 0;
+    const visitDue = invoice?.dueAmount !== undefined ? invoice.dueAmount : Math.max(0, visitTotal - visitPaid);
     // TOTAL
     doc.font("Helvetica");
     doc.text("Total Amount", 350, y);
@@ -979,16 +979,19 @@ app.get("/public/invoice/:id", async (req, res) => {
     y += 10;
     let visitTotal = treatments.reduce((sum, t) => sum + (Number(t.pricePerDay || 0) * Number(t.days || 0)), 0);
 
+    const visitPaid = invoice?.paidAmount || 0;
+    const visitDue = invoice?.dueAmount !== undefined ? invoice.dueAmount : Math.max(0, visitTotal - visitPaid);
+
     doc.font("Helvetica");
     doc.text("Total Amount", 350, y);
     doc.text(`₹ ${visitTotal}`, 500, y, { align: "right" });
     y += 15;
     doc.text("Paid Amount", 350, y);
-    doc.text(`₹ ${visitTotal}`, 500, y, { align: "right" });
+    doc.text(`₹ ${visitPaid}`, 500, y, { align: "right" });
     y += 15;
     doc.font("Helvetica-Bold");
     doc.text("Due Amount", 350, y);
-    doc.text(`₹ 0`, 500, y, { align: "right" });
+    doc.text(`₹ ${visitDue}`, 500, y, { align: "right" });
 
     doc.moveDown(4);
     doc.font("Helvetica").fontSize(13).text("Authorized Signature", 420);
