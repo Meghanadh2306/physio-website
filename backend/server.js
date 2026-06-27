@@ -1376,6 +1376,11 @@ app.get("/doctor/report/pdf", async (req, res) => {
 
 /* ================= SERVER ================= */
 const PORT = process.env.PORT || 5500;
-app.listen(PORT, () => {
-  console.log("🚀 Server running on port", PORT);
-});
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log("🚀 Server running on port", PORT);
+  });
+}
+
+// Export the Express API
+module.exports = app;
