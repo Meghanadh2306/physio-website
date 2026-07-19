@@ -1,8 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const ExcelJS = require("exceljs");
-const PDFDocument = require("pdfkit");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const path = require("path");
@@ -733,6 +731,7 @@ function formatDateDMY(dateValue) {
 
 app.get("/invoice/:id", async (req, res) => {
   try {
+    const PDFDocument = require("pdfkit");
     const token = req.query.token;
     if (!token) return res.status(401).send("Token missing");
     jwt.verify(token, process.env.JWT_SECRET);
@@ -900,6 +899,7 @@ app.get("/invoice/:id", async (req, res) => {
 /* ================= PUBLIC INVOICE (NO AUTH) ================= */
 app.get("/public/invoice/:id", async (req, res) => {
   try {
+    const PDFDocument = require("pdfkit");
     const patient = await Patient.findById(req.params.id);
     if (!patient) return res.status(404).send("Patient not found");
 
@@ -1015,6 +1015,7 @@ app.get("/public/invoice/:id", async (req, res) => {
 /* ================= MONTHLY REPORT ================= */
 app.get("/report/monthly/excel", auth, async (req, res) => {
   try {
+    const ExcelJS = require("exceljs");
     const { month, year } = req.query;
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59);
@@ -1100,6 +1101,7 @@ app.get("/report/monthly/excel", auth, async (req, res) => {
 /* ================= DOCTOR MONTHLY EXCEL ================= */
 app.get("/doctor/report/excel", auth, async (req, res) => {
   try {
+    const ExcelJS = require("exceljs");
     const { doctor, month, year } = req.query;
     if (!doctor || !month || !year) {
       return res.status(400).send("Doctor, month, and year are required");
@@ -1227,6 +1229,7 @@ app.get("/doctor/report/excel", auth, async (req, res) => {
 /* ================= DOCTOR MONTHLY PDF ================= */
 app.get("/doctor/report/pdf", async (req, res) => {
   try {
+    const PDFDocument = require("pdfkit");
     const token = req.query.token;
     if (!token) return res.status(401).send("Token missing");
     jwt.verify(token, process.env.JWT_SECRET);
@@ -1376,7 +1379,7 @@ app.get("/doctor/report/pdf", async (req, res) => {
 
 /* ================= SERVER ================= */
 const PORT = process.env.PORT || 5500;
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log("🚀 Server running on port", PORT);
   });
